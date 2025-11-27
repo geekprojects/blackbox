@@ -9,8 +9,9 @@
 #include <QLabel>
 
 #include <QGeoView/QGVLayerOSM.h>
+#include <QGeoView/QGVWidgetText.h>
 
-#include "blackbox.h"
+#include "../blackbox.h"
 #include "landingicon.h"
 
 using namespace std;
@@ -43,6 +44,12 @@ RouteMap::RouteMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     m_itemsLayer->addItem(m_positionIcon);
     m_route = new Route(Qt::blue);
     m_itemsLayer->addItem(m_route);
+
+    auto copyrightWidget = new QGVWidgetText();
+    copyrightWidget->setText("<small>© OpenStreetMap contributors</small>");
+    copyrightWidget->setAnchor(QPoint(5, 5), { Qt::RightEdge, Qt::BottomEdge });
+    copyrightWidget->setAutoFillBackground(true);
+    addWidget(copyrightWidget);
 
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &RouteMap::updateRoute);
@@ -149,7 +156,7 @@ void RouteMap::updateRoute()
         if (state.flightPhase == FlightPhase::LANDING && m_lastState.flightPhase != FlightPhase::LANDING)
         {
             auto* item = new LandingIcon(state);
-            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(40, 40));
+            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
             m_items.push_back(item);
             m_itemsLayer->addItem(item);
             item->bringToFront();
@@ -159,7 +166,7 @@ void RouteMap::updateRoute()
             QImage planeIcon("../data/images/airport.png");
             auto* item = new QGVIcon();
             item->loadImage(planeIcon);
-            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(40, 40));
+            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
             m_items.push_back(item);
             m_itemsLayer->addItem(item);
             item->bringToFront();

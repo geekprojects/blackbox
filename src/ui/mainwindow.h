@@ -10,13 +10,7 @@
 #include <QMainWindow>
 #include <QSystemTrayIcon>
 
-#include <QGeoView/QGVMap.h>
-#include <QGeoView/QGVLayerGoogle.h>
-#include <QGeoView/Raster/QGVIcon.h>
-
 #include "blackbox.h"
-#include "line.h"
-#include "route.h"
 #include "blackbox/datastore.h"
 
 class LiveIndicator;

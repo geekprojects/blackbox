@@ -40,8 +40,6 @@ public:
 
     void resetRoute();
     void updateRoute();
-
-
 };
 
 #endif //BLACKBOX_ROUTEMAP_H

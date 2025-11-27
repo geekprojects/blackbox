@@ -28,24 +28,22 @@ add_definitions(
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 add_executable(blackbox src/ui/main.cpp
-        src/ui/line.cpp
-        src/ui/line.h
         src/ui/navigraph.cpp
         src/ui/navigraph.h
-        src/ui/route.cpp
-        src/ui/route.h
+        src/ui/map/route.cpp
+        src/ui/map/route.h
         src/common/datastore.cpp
         src/common/logger.cpp
         src/ui/mainwindow.cpp
         src/ui/mainwindow.h
-        src/ui/routemap.cpp
-        src/ui/routemap.h
+        src/ui/map/routemap.cpp
+        src/ui/map/routemap.h
         src/ui/blackbox.cpp
         src/ui/blackbox.h
         src/ui/liveindicator.cpp
         src/ui/liveindicator.h
-        src/ui/landingicon.cpp
-        src/ui/landingicon.h
+        src/ui/map/landingicon.cpp
+        src/ui/map/landingicon.h
 )
 target_link_libraries(blackbox PRIVATE
         ${GEOVIEW_LIBRARY}

@@ -3,7 +3,7 @@
 //
 
 #include "mainwindow.h"
-#include "routemap.h"
+#include "map/routemap.h"
 
 #include <QDir>
 #include <QNetworkDiskCache>
@@ -36,12 +36,14 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
 {
     setWindowTitle("BlackBox Flight Tracker");
 
+    /*
     auto trayIconMenu = new QMenu(this);
     trayIconMenu->addAction(new QAction("Hello!"));
     m_sysTrayIcon = new QSystemTrayIcon(this);
     m_sysTrayIcon->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::DocumentSend));
     m_sysTrayIcon->setContextMenu(trayIconMenu);
     m_sysTrayIcon->show();
+    */
 
     auto menu = menuBar();
     auto fileMenu = menu->addMenu("File");
@@ -72,7 +74,6 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
     m_map = new RouteMap(m_blackBoxUI);
     layout->addWidget(m_map);
 
-
     auto hbox = new QHBoxLayout();
     hbox->setAlignment(Qt::AlignLeft);
     layout->addLayout(hbox);
@@ -101,7 +102,6 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
         auto id = m_flightComboBox->itemData(index).toULongLong();
         m_blackBoxUI->setCurrentFlightId(id);
         m_map->resetRoute();
-    m_sysTrayIcon->showMessage("Uh oh!", "Caroline did a pop off!");
     });
 
     printf("MainWindow::MainWindow: Done!\n");

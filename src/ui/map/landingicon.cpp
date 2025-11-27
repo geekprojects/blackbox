@@ -28,5 +28,13 @@ QString LandingIcon::projTooltip(const QPointF &projPos) const
 {
     char buf[1024];
     snprintf(buf, sizeof(buf), "FPM: %0.2f", m_landingState.fpm);
+
+const char* rating;
+    if (m_landingState.fpm >= -125.0)
+    {
+        rating = "Butter!";
+    }
+
+
     return QString(buf);
 }
