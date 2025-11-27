@@ -11,23 +11,24 @@ find_library(GEOVIEW_LIBRARY qgeoview)
 find_library(SQLITE3_LIBRARY NAMES sqlite3 )
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
-qt_standard_project_setup()
+qt_standard_project_setup(REQUIRES 6.8)
 
 find_package(PkgConfig REQUIRED)
 #pkg_check_modules(libufc REQUIRED libufc)
-pkg_check_modules(nlohmann_json REQUIRED nlohmann_json)
-pkg_check_modules(libzmq REQUIRED libzmq)
+#pkg_check_modules(nlohmann_json REQUIRED nlohmann_json)
 
 add_definitions(
         -I/usr/local/include
         #${libufc_CFLAGS}
-        ${nlohmann_json_CFLAGS}
-        ${libzmq_CFLAGS}
+        #${nlohmann_json_CFLAGS}
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-add_executable(blackbox src/ui/main.cpp
+qt_add_executable(blackbox
+        WIN32
+        MACOSX_BUNDLE
+        src/ui/main.cpp
         src/ui/navigraph.cpp
         src/ui/navigraph.h
         src/ui/map/route.cpp
@@ -51,6 +52,14 @@ target_link_libraries(blackbox PRIVATE
         Qt6::Widgets
         Qt6::Network
         ${SQLITE3_LIBRARY}
+)
+
+set_target_properties(blackbox PROPERTIES
+        BUNDLE True
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.geekprojects.blackbox.ui
+        MACOSX_BUNDLE_BUNDLE_NAME BlackBox
+        MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
 )
 
 if(UNIX AND APPLE)
