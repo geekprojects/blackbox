@@ -30,7 +30,6 @@ RouteMap::RouteMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     //backgroundLayer->setUrl("http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}");
     //backgroundLayer->setUrl("http://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png");
     //backgroundLayer->setUrl("https://a.tile.opentopomap.org/${z}/${x}/${y}.png");
-    //backgroundLayer->setUrl("http://tile.thunderforest.com/landscape/${z}/${x}/${y}.png?apikey=ee7561cc2006441b86a26fc744bc921e");
     addItem(m_backgroundLayer);
 
     m_itemsLayer = new QGVLayer();
