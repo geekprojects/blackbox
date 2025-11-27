@@ -4,6 +4,8 @@
 
 #include "statuswindow.h"
 
+#include <XPLMGraphics.h>
+
 using namespace std;
 using namespace UFC;
 
@@ -29,7 +31,7 @@ bool StatusWindow::open()
     params.structSize = sizeof(params);
     params.left = left + 10;
     params.bottom = bottom + 60;
-    params.right = left + 250;
+    params.right = left + 350;
     params.top = bottom + 10;
     params.visible = 1;
     params.drawWindowFunc = drawCallback;
@@ -75,11 +77,17 @@ void StatusWindow::draw(XPLMWindowID in_window_id) const
         case CRASHED: phase = "Crashed"; break;
     }
 
-    float agl = m_plugin->getAGL();
+    State state = m_plugin->getState();
 
     float col_white[] = {1.0, 1.0, 1.0};
     char buf[1024];
-    snprintf(buf, 1024, "Phase: %s: FPM: %0.2f (%ld samples), AGL=%0.2f", phase.c_str(), m_plugin->getFPM().average(), m_plugin->getFPM().data.size(), agl);
+    snprintf(
+        buf,
+        1024,
+        "Phase: %s, FPM: %0.2f, AGL: %0.2f",
+        phase.c_str(),
+        state.fpm,
+        state.agl);
     XPLMDrawString(col_white, l + 10, t - (char_height + 5), buf, nullptr, xplmFont_Proportional);
 
     snprintf(buf, 1024, "Last message: %s", m_plugin->getMessage().c_str());

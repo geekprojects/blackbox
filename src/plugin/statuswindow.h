@@ -8,7 +8,6 @@
 #include "plugin.h"
 
 #include <XPLMDisplay.h>
-#include <XPLMGraphics.h>
 
 class StatusWindow
 {
@@ -18,7 +17,7 @@ class StatusWindow
 
     static void drawCallback(XPLMWindowID in_window_id, void * in_refcon)
     {
-        ((StatusWindow*)in_refcon)->draw(in_window_id);
+        static_cast<StatusWindow*>(in_refcon)->draw(in_window_id);
     }
     void draw(XPLMWindowID in_window_id) const;
 

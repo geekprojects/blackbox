@@ -16,10 +16,11 @@
 #include <XPLMMenus.h>
 #include <XPLMDataAccess.h>
 
+#include "blackbox/datastore.h"
 #include "blackbox/logger.h"
 #include "blackbox/state.h"
 
-class Sender;
+class Writer;
 
 class XPLogPrinter : public BlackBox::LogPrinter
 {
@@ -47,7 +48,7 @@ struct DataSet
     std::deque<float> data;
     std::deque<float> time;
 
-    void add(float v, float t)
+    void add(const float v, const float t)
     {
         data.push_back(v);
         time.push_back(t);
@@ -62,7 +63,7 @@ struct DataSet
     [[nodiscard]] float average() const
     {
         float sum = 0;
-        for (float v : data)
+        for (const float v : data)
         {
             sum += v;
         }
@@ -76,20 +77,25 @@ struct DataSet
     }
 };
 
-
 class BlackBoxPlugin : public BlackBox::Logger
 {
     XPLogPrinter m_logPrinter;
     std::string m_message;
 
-    std::unique_ptr<Sender> m_sender;
+    DataStore m_datastore;
+    Flight m_currentFlight;
+
+    std::unique_ptr<Writer> m_writer;
     float m_lastSendTime = 0;
     UFC::Coordinate m_lastPosition;
 
+    XPLMDataRef m_aircraftICAODataRef = nullptr;
+    XPLMDataRef m_flightIDDataRef = nullptr;
     XPLMDataRef m_latitudeDataRef = nullptr;
     XPLMDataRef m_longitudeDataRef = nullptr;
     XPLMDataRef m_elevationDataRef = nullptr;
     XPLMDataRef m_groundSpeedDataRef = nullptr;
+    XPLMDataRef m_iasDataRef = nullptr;
     XPLMDataRef m_parkingBrakeDataRef = nullptr;
     XPLMDataRef m_verticalFPMDataRef = nullptr;
     XPLMDataRef m_gForceDataRef = nullptr;
@@ -97,6 +103,8 @@ class BlackBoxPlugin : public BlackBox::Logger
     XPLMDataRef m_onGroundAllDataRef = nullptr;
     XPLMDataRef m_aglDataRef = nullptr;
     XPLMDataRef m_pitchRateDataRef = nullptr;
+    XPLMDataRef m_rollRateDataRef = nullptr;
+    XPLMDataRef m_yawRateDataRef = nullptr;
     XPLMDataRef m_localTimeDataRef = nullptr;
     XPLMDataRef m_pausedDataRef = nullptr;
     XPLMDataRef m_replayDataRef = nullptr;
@@ -113,6 +121,12 @@ class BlackBoxPlugin : public BlackBox::Logger
 
     void sendEvent(float elapsedSim);
 
+    std::string findNearestAirport(float latitude, float longitude);
+
+    void createFlight();
+
+    void updatePosition();
+
     float update(float elapsedMe, float elapsedSim, int counter);
 
  public:
@@ -128,9 +142,11 @@ class BlackBoxPlugin : public BlackBox::Logger
 
     void receiveMessage(XPLMPluginID inFrom, int inMsg, void * inParam);
 
-    [[nodiscard]] float getAGL() const;
+    void updateFlight();
+
+    DataStore& getDataStore() { return m_datastore; }
     [[nodiscard]] FlightPhase getFlightPhase() const { return m_state.flightPhase; }
-    [[nodiscard]] const DataSet& getFPM() const { return m_fpm; }
+    [[nodiscard]] const State& getState() const { return m_state; }
 
     void setMessage(const char* message, ...);
     [[nodiscard]] std::string getMessage() const { return m_message; }
