@@ -9,7 +9,6 @@ set(CMAKE_AUTOUIC_SEARCH_PATHS src/ui)
 
 find_library(GEOVIEW_LIBRARY qgeoview)
 find_library(SQLITE3_LIBRARY NAMES sqlite3 )
-find_library(LEVELDB_LIBRARY NAMES leveldb )
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
 qt_standard_project_setup()
@@ -39,6 +38,14 @@ add_executable(blackbox src/ui/main.cpp
         src/common/logger.cpp
         src/ui/mainwindow.cpp
         src/ui/mainwindow.h
+        src/ui/routemap.cpp
+        src/ui/routemap.h
+        src/ui/blackbox.cpp
+        src/ui/blackbox.h
+        src/ui/liveindicator.cpp
+        src/ui/liveindicator.h
+        src/ui/landingicon.cpp
+        src/ui/landingicon.h
 )
 target_link_libraries(blackbox PRIVATE
         ${GEOVIEW_LIBRARY}
@@ -46,7 +53,6 @@ target_link_libraries(blackbox PRIVATE
         Qt6::Widgets
         Qt6::Network
         ${SQLITE3_LIBRARY}
-        ${LEVELDB_LIBRARY}
 )
 
 if(UNIX AND APPLE)
@@ -66,33 +72,16 @@ add_library(bbplugin SHARED
         src/plugin/plugin.h
         src/plugin/statuswindow.cpp
         src/plugin/statuswindow.h
-        src/plugin/sender.cpp
-        src/plugin/sender.h
+        src/plugin/Writer.cpp
+        src/plugin/Writer.h
         src/common/logger.cpp
+        src/common/datastore.cpp
         include/blackbox/state.h
-        include/blackbox/event.h
 )
 
 target_compile_definitions(bbplugin PUBLIC ${XPLM_CFLAGS})
 target_include_directories(bbplugin PUBLIC ${XPLANE_INC})
 target_link_libraries(bbplugin
         ${XPLM_LDFLAGS}
-        ${libzmq_LDFLAGS}
-)
-
-add_executable(blackbox-server
-        src/server/main.cpp
-        src/common/datastore.cpp
-        include/blackbox/datastore.h
-        src/server/receiver.cpp
-        src/server/receiver.h
-        src/common/logger.cpp
-)
-target_link_libraries(blackbox-server
-        -Wl,-rpath -Wl,/usr/local/lib
-        -L/usr/local/lib
-        #${libufc_LDFLAGS}
-        ${libzmq_LDFLAGS}
         ${SQLITE3_LIBRARY}
 )
-
