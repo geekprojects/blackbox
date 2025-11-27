@@ -14,6 +14,7 @@ struct Point
 {
     QGV::GeoPos position;
     float altitude;
+    float heading;
 
     QPointF projected;
 };
@@ -33,19 +34,22 @@ class Route :  public QGVDrawItem
     void projOnObjectStopMove(const QPointF& projPos) override;
 
     std::vector<Point> m_points;
-    //std::vector<QPointF> m_pointsProjected;
     QGV::GeoRect m_boundingRect;
     QRectF m_boundingRectProjected;
     QColor mColor;
+
+    float m_maxAltitude = 0;
 
 public:
     Route(QColor color);
 
     void set(std::vector<Point> points);
     void addPoints(std::vector<Point> points);
+    void clear();
 
     QGV::GeoRect getRect() const;
 
+    Point getLastPosition();
 };
 
 

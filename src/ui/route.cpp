@@ -11,6 +11,7 @@
 
 Route::Route(QColor color) : mColor(color)
 {
+    setFlag(QGV::ItemFlag::Clickable);
 }
 
 void Route::set(std::vector<Point> points)
@@ -24,6 +25,7 @@ void Route::addPoints(std::vector<Point> points)
     m_points.insert(m_points.end(), points.begin(), points.end());
     printf("addPoints: Added %ld points, we now have %ld\n", points.size(), m_points.size());
 
+    m_maxAltitude = 1;
     if (!m_points.empty())
     {
         m_boundingRect = QGV::GeoRect(m_points[0].position, m_points[0].position);
@@ -51,6 +53,10 @@ void Route::addPoints(std::vector<Point> points)
             {
                 maxLon = point.position.longitude();
             }
+            if (point.altitude > m_maxAltitude)
+            {
+                m_maxAltitude = point.altitude;
+            }
         }
         m_boundingRect = QGV::GeoRect(
             QGV::GeoPos(minLat, minLon),
@@ -68,9 +74,25 @@ void Route::addPoints(std::vector<Point> points)
     }
 }
 
+void Route::clear()
+{
+    m_points.clear();
+    m_boundingRect = QGV::GeoRect();
+    refresh();
+}
+
 QGV::GeoRect Route::getRect() const
 {
     return m_boundingRect;
+}
+
+Point Route::getLastPosition()
+{
+    if (!m_points.empty())
+    {
+        return m_points.back();
+    }
+    return Point();
 }
 
 void Route::onProjection(QGVMap* geoMap)
@@ -106,6 +128,14 @@ QPainterPath Route::projShape() const
     return path;
 }
 
+QColor interpolate(QColor start,QColor end,double ratio)
+{
+    int r = (int)(ratio*start.red() + (1-ratio)*end.red());
+    int g = (int)(ratio*start.green() + (1-ratio)*end.green());
+    int b = (int)(ratio*start.blue() + (1-ratio)*end.blue());
+    return QColor::fromRgb(r,g,b);
+}
+
 void Route::projPaint(QPainter* painter)
 {
     QPen pen = QPen(QBrush(Qt::blue), 10);
@@ -119,6 +149,9 @@ void Route::projPaint(QPainter* painter)
     pen.setCosmetic(true);
     painter->setBrush(QBrush(mColor));
 
+    auto colour1 =  QColor(0, 255, 0);
+    auto colour2 =  QColor(82, 78, 221);
+    //auto colour2 = QColor(87, 190, 55);
     if (m_points.size() > 1)
     {
         Point previous;
@@ -127,21 +160,7 @@ void Route::projPaint(QPainter* painter)
         {
             if (it != m_points.begin())
             {
-                if (it->altitude < 1000)
-                {
-                    pen.setColor(Qt::green);
-                    //painter->setBrush(QBrush(Qt::green));
-                }
-                else if (it->altitude < 2000)
-                {
-                    pen.setColor(Qt::yellow);
-                    //painter->setBrush(QBrush(Qt::yellow));
-                }
-                else
-                {
-                    pen.setColor(Qt::red);
-
-                }
+                pen.setColor(interpolate(colour2, colour1, it->altitude / m_maxAltitude));
                 painter->setPen(pen);
                 painter->drawLine(previous.projected, it->projected);
             }
@@ -234,11 +253,12 @@ void Route::projOnMouseClick(const QPointF& projPos)
     // In this case we change opacity for item.
 
     if (!isSelectable()) {
+        /*
         if (getOpacity() <= 0.5)
             setOpacity(1.0);
         else
             setOpacity(0.5);
-
+*/
         qInfo() << "single click" << projPos;
     } else {
         setOpacity(1.0);

@@ -5,33 +5,50 @@
 #ifndef BLACKBOX_MAINWINDOW_H
 #define BLACKBOX_MAINWINDOW_H
 
+#include <QComboBox>
+#include <QLabel>
 #include <QMainWindow>
+#include <QSystemTrayIcon>
 
 #include <QGeoView/QGVMap.h>
 #include <QGeoView/QGVLayerGoogle.h>
+#include <QGeoView/Raster/QGVIcon.h>
 
+#include "blackbox.h"
 #include "line.h"
 #include "route.h"
 #include "blackbox/datastore.h"
 
+class LiveIndicator;
+class RouteMap;
+
 class MainWindow : public QMainWindow
 {
-    //Q_OBJECT
-    QGVMap* mMap;
-    QGVLayer* mItemsLayer;
-    Line* m_line;
-    Route* m_route;
+    Q_OBJECT
 
-    DataStore m_dataStore;
-    uint64_t m_lastTimestamp = 0;
+    BlackBoxUI* m_blackBoxUI;
 
-    State m_lastState;
+    QSystemTrayIcon* m_sysTrayIcon;
+
+    LiveIndicator* m_liveIndicator;
+    QComboBox* m_flightComboBox = nullptr;
+
+    QLabel* m_altitudeLabel = nullptr;
+    QLabel* m_speedLabel = nullptr;
+
+    RouteMap* m_map;
+
+    void deleteCurrentFlight();
 
 public:
-    MainWindow();
-    ~MainWindow();
+    void updateFlights();
 
-    void updateRoute();
+    explicit MainWindow(BlackBoxUI* blackBoxUI);
+    ~MainWindow() override;
+
+    bool init();
+
+    void updateState();
 };
 
 #endif //BLACKBOX_MAINWINDOW_H
