@@ -6,7 +6,6 @@
 #include "route.h"
 
 #include <QTimer>
-#include <QLabel>
 
 #include <QGeoView/QGVLayerOSM.h>
 #include <QGeoView/QGVWidgetText.h>
@@ -22,8 +21,6 @@ RouteMap::RouteMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     setMouseAction(QGV::MouseAction::ContextMenu, true);
 
     // Background layer
-    //auto osmLayer = new QGVLayerGoogle();
-    //osmLayer->setType(QGV::TilesType::Hybrid);
     auto backgroundLayer = new QGVLayerOSM();
     m_backgroundLayer = backgroundLayer;
     //backgroundLayer->setUrl("https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}");
@@ -143,8 +140,7 @@ void RouteMap::updateRoute()
     {
         Point p;
         p.position = QGV::GeoPos(state.position.latitude, state.position.longitude);
-        //p.altitude = state.position.altitude;
-        p.altitude = state.agl;
+        p.altitude = state.position.altitude;
         if (p.altitude < 0.0f)
         {
             p.altitude = 0.0f;
