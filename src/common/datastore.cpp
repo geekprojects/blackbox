@@ -39,9 +39,9 @@ DataStore::~DataStore()
     }
 }
 
-bool DataStore::init()
+bool DataStore::init(string dbPath)
 {
-    int res = sqlite3_open("/Users/ian/projects/blackbox/blackbox.db", &m_db);
+    int res = sqlite3_open(dbPath.c_str(), &m_db);
     if (res != SQLITE_OK)
     {
         log(ERROR, "Failed to open database");

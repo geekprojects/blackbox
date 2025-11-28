@@ -6,6 +6,8 @@
 #include "mainwindow.h"
 
 #include <QCommandLineParser>
+#include <QSettings>
+#include <QFileDialog>
 
 using namespace std;
 
@@ -20,7 +22,57 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : m_app(argc, argv)
     parser.addVersionOption();
     parser.process(m_app);
 
-    m_dataStore.init();
+
+    QSettings settings("geekprojects", "BlackBox");
+    printf("Settings file: %s\n", settings.fileName().toStdString().c_str());
+
+    string xplaneDir;
+    auto xplaneDirValue = settings.value("XPlaneDir");
+    if (xplaneDirValue.isValid())
+    {
+        xplaneDir = xplaneDirValue.toString().toStdString();
+    }
+    else
+    {
+        printf("No XPlane directory set, please set in settings\n");
+        auto dialog = QFileDialog::getExistingDirectory(nullptr, "Select XPlane directory");
+        printf("dir=%s\n", dialog.toStdString().c_str());
+        if (dialog.isEmpty())
+        {
+            printf("No XPlane directory specified, exiting\n");
+            exit(1);
+        }
+
+        std::filesystem::path xpPath(dialog.toStdString());
+        if (!exists(xpPath) && !is_directory(xpPath))
+        {
+            printf("No XPlane directory is not valid, exiting\n");
+            exit(1);
+        }
+
+        std::filesystem::path resourcesPath = xpPath / "Resources" / "plugins";
+        if (!exists(xpPath) && !is_directory(xpPath))
+        {
+            printf("No plugins directory!");
+            exit(1);
+        }
+
+        xplaneDir = dialog.toStdString();
+        settings.setValue("XPlaneDir", QVariant::fromValue(QString::fromStdString(xplaneDir)));
+        settings.sync();
+    }
+
+    printf("XPlane directory: %s\n", xplaneDir.c_str());
+    auto databasePath = filesystem::path(xplaneDir) / "Output" / "blackbox";
+    if (!exists(databasePath))
+    {
+        create_directory(databasePath);
+    }
+
+    printf("Database directory: %s\n", databasePath.c_str());
+    auto databaseFile = databasePath / "blackbox.db";
+
+    m_dataStore.init(databaseFile.string());
 
     m_mainWindow = new MainWindow(this);
     m_mainWindow->init();

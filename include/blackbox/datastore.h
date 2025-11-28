@@ -30,7 +30,7 @@ class DataStore : BlackBox::Logger
     DataStore();
     ~DataStore();
 
-    bool init();
+    bool init(std::string dbPath);
 
     uint64_t createFlight(Flight &flight);
     void updateFlight(const Flight &flight);

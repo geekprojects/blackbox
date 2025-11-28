@@ -21,7 +21,7 @@ StatusWindow::~StatusWindow()
     }
 }
 
-bool StatusWindow::open()
+bool StatusWindow::init()
 {
     int left;
     int bottom;
@@ -33,7 +33,7 @@ bool StatusWindow::open()
     params.bottom = bottom + 60;
     params.right = left + 350;
     params.top = bottom + 10;
-    params.visible = 1;
+    params.visible = 0;
     params.drawWindowFunc = drawCallback;
     params.handleMouseClickFunc = nullptr;
     params.handleRightClickFunc = nullptr;
@@ -52,6 +52,23 @@ bool StatusWindow::open()
     XPLMSetWindowTitle(m_window, "BlackBox Flight Recorder");
 
     return true;
+}
+
+bool StatusWindow::open()
+{
+    XPLMSetWindowIsVisible(m_window, true);
+    return true;
+}
+
+bool StatusWindow::close()
+{
+    XPLMSetWindowIsVisible(m_window, false);
+    return true;
+}
+
+bool StatusWindow::isOpen()
+{
+    return XPLMGetWindowIsVisible(m_window);
 }
 
 void StatusWindow::draw(XPLMWindowID in_window_id) const

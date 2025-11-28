@@ -115,6 +115,10 @@ class BlackBoxPlugin : public BlackBox::Logger
 
     DataSet m_fpm;
 
+    int m_menuContainer = 0;
+    XPLMMenuID m_menuId = nullptr;
+    int m_showWindowMenu = 0;
+
     std::unique_ptr<StatusWindow> m_statusWindow = nullptr;
 
     static float updateCallback(float elapsedMe, float elapsedSim, int counter, void * refcon);
@@ -128,6 +132,12 @@ class BlackBoxPlugin : public BlackBox::Logger
     void updatePosition();
 
     float update(float elapsedMe, float elapsedSim, int counter);
+
+    static void menuCallback(void* menuRef, void* itemRef)
+    {
+        ((BlackBoxPlugin*)menuRef)->menuCallback(itemRef);
+    }
+    void menuCallback(void* in_item_ref);
 
  public:
     BlackBoxPlugin();

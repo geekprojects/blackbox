@@ -7,6 +7,7 @@
 #include "writer.h"
 
 #include <cfloat>
+#include <filesystem>
 
 #include <XPLMPlugin.h>
 #include <XPLMNavigation.h>
@@ -47,7 +48,7 @@ BlackBoxPlugin::BlackBoxPlugin() : Logger("BlackBox")
 {
     setLogPrinter(&m_logPrinter);
 
-    XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
+    //XPLMEnableFeature("XPLM_USE_NATIVE_WIDGET_WINDOWS", 1);
 
     reset();
 }
@@ -58,9 +59,26 @@ void BlackBoxPlugin::reset()
     m_fpm.reset();
 }
 
+
 bool BlackBoxPlugin::start()
 {
-    if (!m_datastore.init())
+    XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
+
+    char buf[513];
+    XPLMGetSystemPath(buf);
+    filesystem::path xplaneDir(buf);
+    filesystem::path databaseDir = xplaneDir / "Output" / "blackbox";
+
+    if (!filesystem::exists(databaseDir))
+    {
+        filesystem::create_directory(databaseDir);
+    }
+
+    filesystem::path databaseFile = databaseDir / "blackbox.db";
+
+    log(DEBUG, "start: database path=%s", databaseFile.c_str());
+
+    if (!m_datastore.init(databaseFile))
     {
         return false;
     }
@@ -94,8 +112,18 @@ bool BlackBoxPlugin::start()
     flightLoop.phase = xplm_FlightLoop_Phase_AfterFlightModel;
     m_updateFlightLoop = XPLMCreateFlightLoop(&flightLoop);
 
+    m_menuContainer = XPLMAppendMenuItem(XPLMFindPluginsMenu(), "BlackBox", 0, 0);
+    m_menuId = XPLMCreateMenu("BlackBox", XPLMFindPluginsMenu(), m_menuContainer, menuCallback, this);
+
+    m_showWindowMenu = XPLMAppendMenuItem(m_menuId, "Show status window", (void*)1, 1);
+    XPLMCheckMenuItem(m_menuId, m_showWindowMenu, xplm_Menu_Unchecked);
+
+    int trackFlight = XPLMAppendMenuItem(m_menuId, "Track flight", (void*)2, 1);
+    XPLMCheckMenuItem(m_menuId, trackFlight, xplm_Menu_Checked);
+
+    int continueFlight = XPLMAppendMenuItem(m_menuId, "Continue previous flight", (void*)2, 1);
+
     m_statusWindow = make_unique<StatusWindow>(this);
-    m_statusWindow->open();
 
     return true;
 }
@@ -525,6 +553,29 @@ void BlackBoxPlugin::setMessage(const char* message, ...)
     m_message = string(buf);
     log(INFO, "%s", m_message.c_str());
     va_end(args);
+}
+
+void BlackBoxPlugin::menuCallback(void* in_item_ref)
+{
+    int itemIdx = reinterpret_cast<uintptr_t>(in_item_ref);
+    switch (itemIdx)
+    {
+        case 1:
+        {
+            bool open = m_statusWindow->isOpen();
+            if (!open)
+            {
+                m_statusWindow->open();
+                XPLMCheckMenuItem(m_menuId, m_showWindowMenu, xplm_Menu_Checked);
+            }
+            else
+            {
+                m_statusWindow->close();
+                XPLMCheckMenuItem(m_menuId, m_showWindowMenu, xplm_Menu_Unchecked);
+            }
+            break;
+        }
+    }
 }
 
 PLUGIN_API int XPluginStart(char* outName, char* outSig, char* outDesc)

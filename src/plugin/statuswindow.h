@@ -25,8 +25,11 @@ class StatusWindow
     explicit StatusWindow(BlackBoxPlugin* plugin);
     ~StatusWindow();
 
+    bool init();
     bool open();
+    bool close();
 
+    bool isOpen();
 };
 
 
