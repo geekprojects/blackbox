@@ -16,30 +16,41 @@ class QGVLayerTiles;
 class BlackBoxUI;
 class Route;
 
+
+enum class MapMode
+{
+    ROUTE,
+    ALL
+};
+
 class RouteMap : public QGVMap
 {
     Q_OBJECT;
 
     BlackBoxUI* m_blackBoxUI = nullptr;
 
+    MapMode m_mode = MapMode::ROUTE;
+
     QGVLayerTilesOnline* m_backgroundLayer = nullptr;
     QGVLayer* m_itemsLayer = nullptr;
+    QGVLayer* m_routesLayer = nullptr;
 
-    Route* m_route = nullptr;
-    State m_lastState;
-    uint64_t m_lastTimestamp = 0;
-
-    std::vector<QGVItem*> m_items;
-
-    QImage* m_planeIcon = nullptr;
-    QGVIcon* m_positionIcon = nullptr;
+    std::vector<Route*> m_routes;
 
 public:
     explicit RouteMap(BlackBoxUI* blackBoxUI);
     ~RouteMap() override;
 
-    void resetRoute();
-    void updateRoute();
+    void setMode(MapMode mode);
+
+    void clearRoutes();
+
+    Route* addRoute(uint64_t flightId);
+
+    void showFlight(uint64_t flightId);
+
+    BlackBoxUI* getBlackBoxUI() const { return m_blackBoxUI; }
+    QGVLayer* getItemsLayer() const { return m_itemsLayer; }
 };
 
 #endif //BLACKBOX_ROUTEMAP_H

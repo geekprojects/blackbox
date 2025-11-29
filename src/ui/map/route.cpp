@@ -8,16 +8,30 @@
 #include <QBrush>
 #include <QPainter>
 #include <QPen>
+#include <QTimer>
 
-Route::Route(QColor color) : mColor(color)
+#include <QGeoView/QGVCamera.h>
+
+#include "landingicon.h"
+#include "../blackbox.h"
+
+using namespace std;
+
+Route::Route(RouteMap* map, uint64_t flightId) : m_map(map), m_flightId(flightId)
 {
     setFlag(QGV::ItemFlag::Clickable);
-}
 
-void Route::set(std::vector<Point> points)
-{
-    m_points.clear();
-    addPoints(points);
+    m_planeIcon = new QImage("../data/images/plane-red.png");
+
+    m_positionIcon = new QGVIcon();
+    m_positionIcon->loadImage(*m_planeIcon);
+    m_positionIcon->setVisible(false);
+    m_map->getItemsLayer()->addItem(m_positionIcon);
+    m_items.push_back(m_positionIcon);
+
+    m_updateTimer = new QTimer(this);
+    connect(m_updateTimer, &QTimer::timeout, this, &Route::updateRoute);
+    m_updateTimer->start(1000);
 }
 
 void Route::addPoints(std::vector<Point> points)
@@ -147,7 +161,6 @@ void Route::projPaint(QPainter* painter)
     }
 
     pen.setCosmetic(true);
-    painter->setBrush(QBrush(mColor));
 
     auto colour1 =  QColor(0, 255, 0);
     auto colour2 =  QColor(82, 78, 221);
@@ -265,53 +278,137 @@ void Route::projOnMouseClick(const QPointF& projPos)
     }
 }
 
-void Route::projOnMouseDoubleClick(const QPointF& projPos)
+void Route::updateRoute()
 {
-    // This method is optional (needed flag is QGV::ItemFlag::Clickable).
-    // Custom reaction to item double mouse click.
-    // In this case we change color for item.
+    BlackBoxUI* ui = m_map->getBlackBoxUI();
+    auto stateUpdates = ui->getDataStore().fetchUpdates(m_flightId, m_lastTimestamp);
+    if (stateUpdates.empty())
+    {
+        return;
+    }
 
-    const QList<QColor> colors = { Qt::red, Qt::blue, Qt::green, Qt::gray, Qt::cyan, Qt::magenta, Qt::yellow };
+    vector<Point> points;
+    for (const State& state : stateUpdates)
+    {
+        Point p;
+        p.position = QGV::GeoPos(state.position.latitude, state.position.longitude);
+        p.altitude = state.position.altitude;
+        if (p.altitude < 0.0f)
+        {
+            p.altitude = 0.0f;
+        }
+        p.heading = state.yaw;
+        points.push_back(p);
+        m_lastTimestamp = state.timestamp;
 
-    const auto iter =
-            std::find_if(colors.begin(), colors.end(), [this](const QColor& color) { return color == mColor; });
-    mColor = colors[(iter - colors.begin() + 1) % colors.size()];
-    repaint();
+        if (state.flightPhase == FlightPhase::LANDING && m_lastState.flightPhase != FlightPhase::LANDING)
+        {
+            auto* item = new LandingIcon(state);
+            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
+            m_items.push_back(item);
+            m_map->getItemsLayer()->addItem(item);
+            item->bringToFront();
+        }
+        if (state.flightPhase == FlightPhase::TAKE_OFF && m_lastState.flightPhase != FlightPhase::TAKE_OFF)
+        {
+            QImage planeIcon("../data/images/airport.png");
+            auto* item = new QGVIcon();
+            item->loadImage(planeIcon);
+            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
+            m_items.push_back(item);
+            m_map->getItemsLayer()->addItem(item);
+            item->bringToFront();
+        }
 
-    setOpacity(1.0);
+        m_lastState = state;
+    }
 
-    qInfo() << "double click" << projPos;
+    ui->setState(m_lastState);
+
+    if (!points.empty())
+    {
+        addPoints(points);
+
+        Point point = getLastPosition();
+
+        QTransform transform;
+        transform.rotate(point.heading);
+
+        QImage image = m_planeIcon->transformed(transform);
+        m_positionIcon->loadImage(image);
+
+        m_positionIcon->setGeometry(
+            QGV::GeoPos(point.position.latitude(), point.position.longitude()),
+            QSizeF(40, 40));
+        m_positionIcon->setVisible(true);
+        m_positionIcon->bringToFront();
+    }
 }
 
-void Route::projOnObjectStartMove(const QPointF& projPos)
+void Route::showRoute()
 {
-    // This method is optional (needed flag is QGV::ItemFlag::Movable).
-    // Custom reaction to item move start.
-    // In this case we only log message.
+    QTimer::singleShot(100, this, [this]()
+    {
+        auto target = getRect();
+        double top = target.latTop();
+        double bottom = target.latBottom();
+        double left = target.lonLeft();
+        double right = target.lonRight();
 
-    qInfo() << "object move started at" << projPos;
+        double width = abs(right - left);
+        double height = abs(bottom - top);
+
+        // Add some margin around the route
+        double vertMargin = width * 0.1;
+        double horizMargin = height * 0.1;
+
+        if (top > 0.0)
+        {
+            top += vertMargin;
+        }
+        else
+        {
+            top -= vertMargin;
+        }
+        if (bottom > 0.0)
+        {
+            bottom -= vertMargin;
+        }
+        else
+        {
+            bottom += vertMargin;
+        }
+
+        if (left > 0.0)
+        {
+            left += horizMargin;
+        }
+        else
+        {
+            left -= horizMargin;
+        }
+        if (right > 0.0)
+        {
+            right -= horizMargin;
+        }
+        else
+        {
+            right += horizMargin;
+        }
+
+        QGV::GeoRect viewRect(top, left, bottom, right);
+
+        m_map->flyTo(QGVCameraActions(m_map).scaleTo(viewRect));
+    });
 }
 
-void Route::projOnObjectMovePos(const QPointF& projPos)
+void Route::removeFromMap()
 {
-    // This method is optional (needed flag is QGV::ItemFlag::Movable).
-    // Custom reaction to mouse pos change when item move is started.
-    // In this case actually changing location of object.
-/*
-    auto newRect = mProjRect;
-    newRect.moveCenter(projPos);
+    m_updateTimer->stop();
+    for (auto item : m_items)
+    {
+        m_map->getItemsLayer()->removeItem(item);
+    }
+    m_items.clear();
 
-    setRect(getMap()->getProjection()->projToGeo(newRect));
-
-    qInfo() << "object moved" << mGeoRect;
-    */
-}
-
-void Route::projOnObjectStopMove(const QPointF& projPos)
-{
-    // This method is optional (needed flag is QGV::ItemFlag::Movable).
-    // Custom reaction to item move finished.
-    // In this case we only log message.
-
-    qInfo() << "object move stopped" << projPos;
 }

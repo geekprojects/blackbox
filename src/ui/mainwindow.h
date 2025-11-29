@@ -29,6 +29,7 @@ class MainWindow : public QMainWindow
 
     QLabel* m_altitudeLabel = nullptr;
     QLabel* m_speedLabel = nullptr;
+    QLabel* m_headingLabel = nullptr;
 
     RouteMap* m_map;
 

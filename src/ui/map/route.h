@@ -8,7 +8,9 @@
 #include <QGeoView/QGVDrawItem.h>
 
 #include <QBrush>
-#include <QPen>
+
+#include "routemap.h"
+#include "blackbox/state.h"
 
 struct Point
 {
@@ -21,6 +23,24 @@ struct Point
 
 class Route :  public QGVDrawItem
 {
+    RouteMap* m_map = nullptr;
+    uint64_t m_flightId;
+
+    std::vector<Point> m_points;
+    QGV::GeoRect m_boundingRect;
+    QRectF m_boundingRectProjected;
+
+    float m_maxAltitude = 0;
+
+    State m_lastState;
+    uint64_t m_lastTimestamp = 0;
+    std::vector<QGVItem*> m_items;
+
+    QImage* m_planeIcon = nullptr;
+    QGVIcon* m_positionIcon = nullptr;
+
+    QTimer* m_updateTimer;
+
     void onProjection(QGVMap* geoMap) override;
     QPainterPath projShape() const override;
     void projPaint(QPainter* painter) override;
@@ -28,28 +48,25 @@ class Route :  public QGVDrawItem
     QTransform projTransform() const override;
     QString projTooltip(const QPointF& projPos) const override;
     void projOnMouseClick(const QPointF& projPos) override;
-    void projOnMouseDoubleClick(const QPointF& projPos) override;
-    void projOnObjectStartMove(const QPointF& projPos) override;
-    void projOnObjectMovePos(const QPointF& projPos) override;
-    void projOnObjectStopMove(const QPointF& projPos) override;
-
-    std::vector<Point> m_points;
-    QGV::GeoRect m_boundingRect;
-    QRectF m_boundingRectProjected;
-    QColor mColor;
-
-    float m_maxAltitude = 0;
 
 public:
-    Route(QColor color);
+    Route(RouteMap* map, uint64_t flightId);
 
-    void set(std::vector<Point> points);
+    //void set(std::vector<Point> points);
     void addPoints(std::vector<Point> points);
     void clear();
 
     QGV::GeoRect getRect() const;
 
     Point getLastPosition();
+
+    void updateRoute();
+
+    void showRoute();
+
+    uint64_t getFlight() const { return m_flightId; }
+
+    void removeFromMap();
 };
 
 

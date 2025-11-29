@@ -33,162 +33,79 @@ RouteMap::RouteMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     m_itemsLayer = new QGVLayer();
     addItem(m_itemsLayer);
 
-    m_planeIcon = new QImage("../data/images/plane-red.png");
-
-    m_positionIcon = new QGVIcon();
-    m_positionIcon->loadImage(*m_planeIcon);
-    m_positionIcon->setVisible(false);
-    m_itemsLayer->addItem(m_positionIcon);
-    m_route = new Route(Qt::blue);
-    m_itemsLayer->addItem(m_route);
+    m_routesLayer = new QGVLayer();
+    addItem(m_routesLayer);
 
     auto copyrightWidget = new QGVWidgetText();
     copyrightWidget->setText("<small>© OpenStreetMap contributors</small>");
     copyrightWidget->setAnchor(QPoint(5, 5), { Qt::RightEdge, Qt::BottomEdge });
     copyrightWidget->setAutoFillBackground(true);
     addWidget(copyrightWidget);
-
-    QTimer *timer = new QTimer(this);
-    connect(timer, &QTimer::timeout, this, &RouteMap::updateRoute);
-    timer->start(1000);
-
 }
 
 RouteMap::~RouteMap()
 {
 }
 
-void RouteMap::resetRoute()
+void RouteMap::setMode(MapMode mode)
 {
-    m_route->clear();
-    m_lastTimestamp = 0;
-
-    for (auto item : m_items)
-    {
-        m_itemsLayer->removeItem(item);
-    }
-    m_items.clear();
-
-    updateRoute();
-    refreshMap();
-
-    QTimer::singleShot(100, this, [this]()
-    {
-        auto target = m_route->getRect();
-        double top = target.latTop();
-        double bottom = target.latBottom();
-        double left = target.lonLeft();
-        double right = target.lonRight();
-
-        double width = abs(right - left);
-        double height = abs(bottom - top);
-
-        // Add some margin around the route
-        double vertMargin = width * 0.1;
-        double horizMargin = height * 0.1;
-
-        if (top > 0.0)
-        {
-            top += vertMargin;
-        }
-        else
-        {
-            top -= vertMargin;
-        }
-        if (bottom > 0.0)
-        {
-            bottom -= vertMargin;
-        }
-        else
-        {
-            bottom += vertMargin;
-        }
-
-        if (left > 0.0)
-        {
-            left += horizMargin;
-        }
-        else
-        {
-            left -= horizMargin;
-        }
-        if (right > 0.0)
-        {
-            right -= horizMargin;
-        }
-        else
-        {
-            right += horizMargin;
-        }
-
-        QGV::GeoRect viewRect(top, left, bottom, right);
-
-        flyTo(QGVCameraActions(this).scaleTo(viewRect));
-    });
-}
-
-void RouteMap::updateRoute()
-{
-    auto stateUpdates = m_blackBoxUI->getDataStore().fetchUpdates(m_blackBoxUI->getCurrentFlight().id, m_lastTimestamp);
-    if (stateUpdates.empty())
+    if (m_mode == mode)
     {
         return;
     }
 
-    vector<Point> points;
-    for (const State& state : stateUpdates)
+    m_mode = mode;
+    clearRoutes();
+    if (m_mode == MapMode::ALL)
     {
-        Point p;
-        p.position = QGV::GeoPos(state.position.latitude, state.position.longitude);
-        p.altitude = state.position.altitude;
-        if (p.altitude < 0.0f)
+        for (auto flight : m_blackBoxUI->getFlights())
         {
-            p.altitude = 0.0f;
+            Route* route = addRoute(flight.first);
         }
-        p.heading = state.yaw;
-        points.push_back(p);
-        m_lastTimestamp = state.timestamp;
-
-        if (state.flightPhase == FlightPhase::LANDING && m_lastState.flightPhase != FlightPhase::LANDING)
-        {
-            auto* item = new LandingIcon(state);
-            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
-            m_items.push_back(item);
-            m_itemsLayer->addItem(item);
-            item->bringToFront();
-        }
-        if (state.flightPhase == FlightPhase::TAKE_OFF && m_lastState.flightPhase != FlightPhase::TAKE_OFF)
-        {
-            QImage planeIcon("../data/images/airport.png");
-            auto* item = new QGVIcon();
-            item->loadImage(planeIcon);
-            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
-            m_items.push_back(item);
-            m_itemsLayer->addItem(item);
-            item->bringToFront();
-        }
-
-        m_lastState = state;
     }
 
-    m_blackBoxUI->setState(m_lastState);
+}
 
-    if (!points.empty())
+void RouteMap::clearRoutes()
+{
+    for (auto route : m_routes)
     {
-        m_route->addPoints(points);
+        route->removeFromMap();
+        m_routesLayer->removeItem(route);
+        delete route;
+    }
+    m_routes.clear();
+}
 
-        Point point = m_route->getLastPosition();
+Route* RouteMap::addRoute(uint64_t flightId)
+{
+    Route* route = new Route(this, flightId);
+    route->updateRoute();
+    m_routesLayer->addItem(route);
+    m_routes.push_back(route);
+    return route;
+}
 
-        QTransform transform;
-        transform.rotate(point.heading);
+void RouteMap::showFlight(uint64_t flightId)
+{
+    for (auto route : m_routes)
+    {
+        if (route->getFlight() == flightId)
+        {
+            route->showRoute();
+            return;
+        }
+    }
 
-        QImage image = m_planeIcon->transformed(transform);
-        m_positionIcon->loadImage(image);
+    if (m_mode == MapMode::ROUTE)
+    {
+        clearRoutes();
 
-        m_positionIcon->setGeometry(
-            QGV::GeoPos(point.position.latitude(), point.position.longitude()),
-            QSizeF(40, 40));
-        m_positionIcon->setVisible(true);
-        m_positionIcon->bringToFront();
+        auto it = m_blackBoxUI->getFlights().find(flightId);
+        if (it != m_blackBoxUI->getFlights().end())
+        {
+            Route* route = addRoute(flightId);
+            route->showRoute();
+        }
     }
 }

@@ -16,6 +16,7 @@
 #include <QGroupBox>
 #include <qicon.h>
 #include <QMessageBox>
+#include <QStandardPaths>
 
 #include "liveindicator.h"
 
@@ -25,7 +26,12 @@ void setupCachedNetworkAccessManager(QObject* parent)
 {
     QDir("cacheDir");
     auto cache = new QNetworkDiskCache(parent);
-    cache->setCacheDirectory("cacheDir");
+
+    auto cacheLocations = QStandardPaths::standardLocations(QStandardPaths::CacheLocation);
+    auto cacheDir = cacheLocations.first() + "/mapcache";
+    printf("Setting map cache dir: %s\n", cacheDir.toStdString().c_str());
+    cache->setCacheDirectory(cacheDir);
+
     cache->setMaximumCacheSize(100 * 1024 * 1024);
     auto manager = new QNetworkAccessManager(parent);
     manager->setCache(cache);
@@ -59,6 +65,10 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
 
     m_flightComboBox = new QComboBox();
     toolbar->addWidget(m_flightComboBox);
+
+    auto refreshAction = new QAction("Refresh");
+    refreshAction->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::ViewRefresh));
+    toolbar->addAction(refreshAction);
 
     auto editAction = new QAction("Edit");
     editAction->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::DocumentProperties));
@@ -96,12 +106,25 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
         infoBox1Layout->addWidget(new QLabel("<b>Speed</b>:"));
         infoBox1Layout->addWidget(m_speedLabel = new QLabel(""));
     }
+    {
+        auto infoBox1 = new QGroupBox();
+        hbox->addWidget(infoBox1);
+        auto infoBox1Layout = new QHBoxLayout();
+        infoBox1->setLayout(infoBox1Layout);
+        infoBox1->setAlignment(Qt::AlignLeft);
+        infoBox1Layout->addWidget(new QLabel("<b>Heading</b>:"));
+        infoBox1Layout->addWidget(m_headingLabel = new QLabel(""));
+    }
+
 
     connect(m_flightComboBox, &QComboBox::currentIndexChanged, this, [this](int index)
     {
-        auto id = m_flightComboBox->itemData(index).toULongLong();
-        m_blackBoxUI->setCurrentFlightId(id);
-        m_map->resetRoute();
+        if (index >= 0)
+        {
+            auto id = m_flightComboBox->itemData(index).toULongLong();
+            m_blackBoxUI->setCurrentFlightId(id);
+            m_map->showFlight(id);
+        }
     });
 
     printf("MainWindow::MainWindow: Done!\n");
@@ -114,9 +137,9 @@ MainWindow::~MainWindow()
 bool MainWindow::init()
 {
     m_blackBoxUI->updateFlights();
-    m_map->resetRoute();
     updateState();
 
+    //m_map->setMode(MapMode::ALL);
     return true;
 }
 
@@ -131,6 +154,9 @@ void MainWindow::updateState()
 
     snprintf(buf, sizeof(buf), "%.0f kn", state.groundSpeed);
     m_speedLabel->setText(QString(buf));
+
+    snprintf(buf, sizeof(buf), "%.0f°", state.yaw);
+    m_headingLabel->setText(QString(buf));
 
     auto now = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
     auto diff = now - state.timestamp;
@@ -207,6 +233,7 @@ void MainWindow::deleteCurrentFlight()
     if (reply == QMessageBox::Yes)
     {
         // Well, we'd better delete it, then
+        m_map->clearRoutes();
         m_blackBoxUI->getDataStore().deleteFlight(m_blackBoxUI->getCurrentFlight().id);
         m_blackBoxUI->updateFlights();
     }
