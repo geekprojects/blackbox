@@ -262,7 +262,7 @@ void BlackBoxPlugin::updateFlight()
         m_currentFlight.icaoType = icaoType;
         update = true;
     }
-    if (m_currentFlight.flightId != flightId)
+    if (m_currentFlight.flightId != flightId && !flightId.empty())
     {
         log(DEBUG, "updateFlight: flightId has changed! %s -> %s", m_currentFlight.flightId.c_str(), flightId.c_str());
         update = true;
@@ -270,7 +270,10 @@ void BlackBoxPlugin::updateFlight()
     if (update)
     {
         m_currentFlight.icaoType = icaoType;
-        m_currentFlight.flightId = flightId;
+        if (!flightId.empty())
+        {
+            m_currentFlight.flightId = flightId;
+        }
         m_datastore.updateFlight(m_currentFlight);
     }
 }
