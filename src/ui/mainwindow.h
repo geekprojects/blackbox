@@ -5,10 +5,13 @@
 #ifndef BLACKBOX_MAINWINDOW_H
 #define BLACKBOX_MAINWINDOW_H
 
+#include <QBoxLayout>
 #include <QComboBox>
 #include <QLabel>
 #include <QMainWindow>
 #include <QSystemTrayIcon>
+
+#include <QGeoView/QGVWidget.h>
 
 #include "blackbox.h"
 #include "blackbox/datastore.h"
@@ -27,6 +30,7 @@ class MainWindow : public QMainWindow
     LiveIndicator* m_liveIndicator;
     QComboBox* m_flightComboBox = nullptr;
 
+    QGVWidget* m_infoWidget = nullptr;
     QLabel* m_altitudeLabel = nullptr;
     QLabel* m_speedLabel = nullptr;
     QLabel* m_headingLabel = nullptr;
@@ -37,6 +41,12 @@ class MainWindow : public QMainWindow
 
 public:
     void updateFlights();
+
+    void buildFlightSelectionWidget();
+
+    QLabel* createInfoBox(QHBoxLayout* hbox, std::string label);
+
+    void buildInfoWidget();
 
     explicit MainWindow(BlackBoxUI* blackBoxUI);
     ~MainWindow() override;

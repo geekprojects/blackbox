@@ -11,14 +11,19 @@
 #define XPLM301 1
 
 #include <deque>
+#include <filesystem>
 #include <vector>
+
 #include <XPLMProcessing.h>
 #include <XPLMMenus.h>
 #include <XPLMDataAccess.h>
 
+#include "screenshots.h"
 #include "blackbox/datastore.h"
 #include "blackbox/logger.h"
 #include "blackbox/state.h"
+
+#include "screenshots.h"
 
 class Writer;
 
@@ -44,7 +49,7 @@ class StatusWindow;
 
 struct DataSet
 {
-    float maxTime = 5.0f; // 5 seconds
+    float maxTime = 1.0f;
     std::deque<float> data;
     std::deque<float> time;
 
@@ -82,12 +87,15 @@ class BlackBoxPlugin : public BlackBox::Logger
     XPLogPrinter m_logPrinter;
     std::string m_message;
 
+    std::filesystem::path m_xplaneDir;
     DataStore m_datastore;
     Flight m_currentFlight;
 
-    std::unique_ptr<Writer> m_writer;
+    std::shared_ptr<Writer> m_writer;
     float m_lastSendTime = 0;
     UFC::Coordinate m_lastPosition;
+
+    ScreenshotWatcher m_screenshotWatcher;
 
     XPLMDataRef m_aircraftICAODataRef = nullptr;
     XPLMDataRef m_flightIDDataRef = nullptr;
@@ -155,8 +163,13 @@ class BlackBoxPlugin : public BlackBox::Logger
     void updateFlight();
 
     DataStore& getDataStore() { return m_datastore; }
+    std::shared_ptr<Writer> getWriter() { return m_writer; }
+
+    Flight& getCurrentFlight() { return m_currentFlight; }
     [[nodiscard]] FlightPhase getFlightPhase() const { return m_state.flightPhase; }
     [[nodiscard]] const State& getState() const { return m_state; }
+
+    [[nodiscard]] std::filesystem::path getXPlaneDir() const { return m_xplaneDir; }
 
     void setMessage(const char* message, ...);
     [[nodiscard]] std::string getMessage() const { return m_message; }

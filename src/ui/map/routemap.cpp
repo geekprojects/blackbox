@@ -5,13 +5,11 @@
 #include "routemap.h"
 #include "route.h"
 
-#include <QTimer>
-
 #include <QGeoView/QGVLayerOSM.h>
 #include <QGeoView/QGVWidgetText.h>
 
+#include "mapmenu.h"
 #include "../blackbox.h"
-#include "landingicon.h"
 
 using namespace std;
 
@@ -41,6 +39,13 @@ RouteMap::RouteMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     copyrightWidget->setAnchor(QPoint(5, 5), { Qt::RightEdge, Qt::BottomEdge });
     copyrightWidget->setAutoFillBackground(true);
     addWidget(copyrightWidget);
+
+    auto mapMenu = new MapMenu();
+    mapMenu->setAnchor(QPoint(5, 5), { Qt::LeftEdge, Qt::TopEdge });
+    addWidget(mapMenu);
+
+    QString qpath = QString::fromStdString("../data/images/camera.svg");
+    m_screenshotIcon = new QImage(qpath);
 }
 
 RouteMap::~RouteMap()
@@ -60,7 +65,7 @@ void RouteMap::setMode(MapMode mode)
     {
         for (auto flight : m_blackBoxUI->getFlights())
         {
-            Route* route = addRoute(flight.first);
+            addRoute(flight.first);
         }
     }
 
@@ -101,11 +106,13 @@ void RouteMap::showFlight(uint64_t flightId)
     {
         clearRoutes();
 
-        auto it = m_blackBoxUI->getFlights().find(flightId);
-        if (it != m_blackBoxUI->getFlights().end())
+        auto flights = m_blackBoxUI->getFlights();
+        auto it = flights.find(flightId);
+        if (it != flights.end())
         {
             Route* route = addRoute(flightId);
             route->showRoute();
         }
+
     }
 }

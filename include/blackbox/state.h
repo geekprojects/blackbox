@@ -34,6 +34,7 @@ struct State
 
     float fpm = 0.0f;
     float fpmAverage = 0.0f;
+    float gForce = 0.0f;
 
     float pitch = 0.0f;
     float yaw = 0.0f;

@@ -5,17 +5,27 @@
 #include "route.h"
 
 #include <filesystem>
-#include <QBrush>
-#include <QPainter>
+#include <float.h>
 #include <QPen>
 #include <QTimer>
 
 #include <QGeoView/QGVCamera.h>
+#include <QGeoView/QGVMapQGView.h>
 
 #include "landingicon.h"
+#include "screenshoticon.h"
 #include "../blackbox.h"
+#include "../../common/utils.h"
 
 using namespace std;
+
+QColor interpolate(QColor start,QColor end,double ratio)
+{
+    int r = (int)(ratio*start.red() + (1-ratio)*end.red());
+    int g = (int)(ratio*start.green() + (1-ratio)*end.green());
+    int b = (int)(ratio*start.blue() + (1-ratio)*end.blue());
+    return QColor::fromRgb(r,g,b);
+}
 
 Route::Route(RouteMap* map, uint64_t flightId) : m_map(map), m_flightId(flightId)
 {
@@ -39,7 +49,7 @@ void Route::addPoints(std::vector<Point> points)
     m_points.insert(m_points.end(), points.begin(), points.end());
     printf("addPoints: Added %ld points, we now have %ld\n", points.size(), m_points.size());
 
-    m_maxAltitude = 1;
+    m_maxAltitude = 0.001f;
     if (!m_points.empty())
     {
         m_boundingRect = QGV::GeoRect(m_points[0].position, m_points[0].position);
@@ -76,6 +86,7 @@ void Route::addPoints(std::vector<Point> points)
             QGV::GeoPos(minLat, minLon),
             QGV::GeoPos(maxLat, maxLon));
     }
+    printf("Max Altitude: %0.2f\n", m_maxAltitude);
 
     // Geo coordinates need to be converted manually again to projection
     if (getMap() != nullptr)
@@ -138,77 +149,60 @@ QPainterPath Route::projShape() const
         }
     }
 
-
     return path;
 }
 
-QColor interpolate(QColor start,QColor end,double ratio)
-{
-    int r = (int)(ratio*start.red() + (1-ratio)*end.red());
-    int g = (int)(ratio*start.green() + (1-ratio)*end.green());
-    int b = (int)(ratio*start.blue() + (1-ratio)*end.blue());
-    return QColor::fromRgb(r,g,b);
-}
 
 void Route::projPaint(QPainter* painter)
 {
-    QPen pen = QPen(QBrush(Qt::blue), 10);
-
-    // Custom item highlight indicator
-    if (isFlag(QGV::ItemFlag::Highlighted) && isFlag(QGV::ItemFlag::HighlightCustom)) {
-        // We will use pen with bigger width
-        pen = QPen(QBrush(Qt::black), 5);
+    if (m_points.empty())
+    {
+        // Nothing to show
+        return;
     }
 
+    QPen pen;
+    pen.setWidth(10);
     pen.setCosmetic(true);
 
-    auto colour1 =  QColor(0, 255, 0);
-    auto colour2 =  QColor(82, 78, 221);
-    //auto colour2 = QColor(87, 190, 55);
-    if (m_points.size() > 1)
+    auto rect = m_map->geoView()->getCamera().projRect();
+
+    QColor colour1;
+    QColor colour2;
+    if (m_map->getLineType() == LineType::G_FORCE)
     {
-        Point previous;
-        //QPainterPath path(m_points.front().projected);
-        for (auto it = m_points.begin(); it != m_points.end(); ++it)
-        {
-            if (it != m_points.begin())
-            {
-                pen.setColor(interpolate(colour2, colour1, it->altitude / m_maxAltitude));
-                painter->setPen(pen);
-                painter->drawLine(previous.projected, it->projected);
-            }
-            previous = *it;
-        }
-        //painter->drawPath(path);
+        colour1 =  QColor(0, 255, 0);
+        colour2 =  QColor(255, 0, 0);
+    }
+    else
+    {
+        colour1 =  QColor(0, 255, 0);
+        colour2 =  QColor(82, 78, 221);
     }
 
-    // Custom item select indicator
-    /*
-    if (isSelected() && isFlag(QGV::ItemFlag::SelectCustom)) {
-        // We will draw additional rect around our item
-        painter->drawLine(mProjRect.topLeft(), mProjRect.bottomRight());
-        painter->drawLine(mProjRect.topRight(), mProjRect.bottomLeft());
+    Point previous;
+    for (auto it = m_points.begin(); it != m_points.end(); ++it)
+    {
+        if (it != m_points.begin())
+        {
+            QPointF const& p1 = previous.projected;
+            QPointF const& p2 = it->projected;
+            if (rect.contains(p1) || rect.contains(p2))
+            {
+                float altitude = (it->altitude + previous.altitude) / 2.0f;
+                pen.setColor(interpolate(colour2, colour1, altitude / m_maxAltitude));
+                painter->setPen(pen);
+                painter->drawLine(p1, p2);
+            }
+        }
+        previous = *it;
     }
-    */
 }
 
 QPointF Route::projAnchor() const
 {
-    // This method is optional (needed flag is QGV::ItemFlag::Transformed).
-    // In this case we will use center of item as base
-
     return m_boundingRectProjected.center();
 }
-
-QTransform Route::projTransform() const
-{
-    // This method is optional (needed flag is QGV::ItemFlag::Transformed).
-    // Custom transformation for item.
-    // In this case we rotate item by 45 degree.
-
-    return QGV::createTransfromAzimuth(projAnchor(), 45);
-}
-
 
 void nearestpointonline2D(const QGV::GeoPos& a, const  QGV::GeoPos& b, const QGV::GeoPos& point, double& lineQx, double& lineQy)
 {
@@ -238,22 +232,42 @@ double pointdistfromline2D(const QGV::GeoPos& a, const QGV::GeoPos& b, const QGV
 
 QString Route::projTooltip(const QPointF& projPos) const
 {
-    // This method is optional (when empty return then no tooltip).
-    // Text for mouse tool tip.
-
     auto geo = getMap()->getProjection()->projToGeo(projPos);
 
     QGV::GeoPos previous;
+    Point closest;
+    double closestDiff = DBL_MAX;
+    bool found = false;
     for (auto& point : m_points)
     {
-double d = pointdistfromline2D(previous, point.position, geo);
-        if (d < 0.5)
+        double d = pointdistfromline2D(previous, point.position, geo);
+        if (d < 0.1 && d < closestDiff)
         {
-char buf[1024];
+            /*
+            char buf[1024];
             snprintf(buf, 1024, "Distance: %.2f, altitude: %0.2f", d, point.altitude);
-    return buf;
+            printf(
+                "%0.2f, %0.2f -> %0.2f, %0.2f, point=%0.2f, %0.2f: distance=%0.2f\n",
+                previous.latitude(),
+                previous.longitude(),
+                point.position.latitude(),
+                point.position.longitude(),
+                geo.latitude(), geo.longitude(),
+                d);
+            return buf;
+            */
+            closestDiff = d;
+            closest = point;
+            found = true;
         }
         previous = point.position;
+    }
+
+    if (found)
+    {
+        char buf[1024];
+        snprintf(buf, 1024, "Distance: %.2f, altitude: %0.2f", closestDiff, closest.altitude);
+        return buf;
     }
     return "";
 }
@@ -292,7 +306,23 @@ void Route::updateRoute()
     {
         Point p;
         p.position = QGV::GeoPos(state.position.latitude, state.position.longitude);
-        p.altitude = state.position.altitude;
+
+        switch (m_map->getLineType())
+        {
+            case LineType::ALTITUDE:
+                p.altitude = state.position.altitude;
+                break;
+            case LineType::SPEED:
+                p.altitude = state.groundSpeed;
+                break;
+            case LineType::G_FORCE:
+                p.altitude = fabs(state.gForce - 0.98f);
+                break;
+        }
+
+        //float heading = Utils::radiansToDegreens(Utils::angleFromCoordinate(m_lastState.position, state.position));
+        //p.altitude = fabs(heading - state.yaw);
+
         if (p.altitude < 0.0f)
         {
             p.altitude = 0.0f;
@@ -301,23 +331,26 @@ void Route::updateRoute()
         points.push_back(p);
         m_lastTimestamp = state.timestamp;
 
-        if (state.flightPhase == FlightPhase::LANDING && m_lastState.flightPhase != FlightPhase::LANDING)
+        if (m_map->getMode() == MapMode::ROUTE)
         {
-            auto* item = new LandingIcon(state);
-            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
-            m_items.push_back(item);
-            m_map->getItemsLayer()->addItem(item);
-            item->bringToFront();
-        }
-        if (state.flightPhase == FlightPhase::TAKE_OFF && m_lastState.flightPhase != FlightPhase::TAKE_OFF)
-        {
-            QImage planeIcon("../data/images/airport.png");
-            auto* item = new QGVIcon();
-            item->loadImage(planeIcon);
-            item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
-            m_items.push_back(item);
-            m_map->getItemsLayer()->addItem(item);
-            item->bringToFront();
+            if (state.flightPhase == FlightPhase::LANDING && m_lastState.flightPhase != FlightPhase::LANDING)
+            {
+                auto* item = new LandingIcon(state);
+                item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
+                m_items.push_back(item);
+                m_map->getItemsLayer()->addItem(item);
+                item->bringToFront();
+            }
+            if (state.flightPhase == FlightPhase::TAKE_OFF && m_lastState.flightPhase != FlightPhase::TAKE_OFF)
+            {
+                QImage planeIcon("../data/images/airport.png");
+                auto* item = new QGVIcon();
+                item->loadImage(planeIcon);
+                item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
+                m_items.push_back(item);
+                m_map->getItemsLayer()->addItem(item);
+                item->bringToFront();
+            }
         }
 
         m_lastState = state;
@@ -329,19 +362,44 @@ void Route::updateRoute()
     {
         addPoints(points);
 
-        Point point = getLastPosition();
+        if (m_map->getMode() == MapMode::ROUTE)
+        {
+            Point point = getLastPosition();
 
-        QTransform transform;
-        transform.rotate(point.heading);
+            QTransform transform;
+            transform.rotate(point.heading);
 
-        QImage image = m_planeIcon->transformed(transform);
-        m_positionIcon->loadImage(image);
+            QImage image = m_planeIcon->transformed(transform);
+            m_positionIcon->loadImage(image);
 
-        m_positionIcon->setGeometry(
-            QGV::GeoPos(point.position.latitude(), point.position.longitude()),
-            QSizeF(40, 40));
-        m_positionIcon->setVisible(true);
-        m_positionIcon->bringToFront();
+            m_positionIcon->setGeometry(
+                QGV::GeoPos(point.position.latitude(), point.position.longitude()),
+                QSizeF(40, 40));
+            m_positionIcon->setVisible(true);
+            m_positionIcon->bringToFront();
+
+            auto screenshots = ui->getDataStore().fetchScreenshots(m_flightId, m_lastScreenshotTimestamp);
+            for (auto screenshot : screenshots)
+            {
+                printf("Found new screenshot: %s\n", screenshot.path.c_str());
+                if (screenshot.timestamp > m_lastScreenshotTimestamp)
+                {
+                    m_lastScreenshotTimestamp = screenshot.timestamp;
+                }
+
+                ScreenshotIcon* icon = new ScreenshotIcon(screenshot.path, screenshot.position);
+                connect(m_map, &QGVMap::scaleChanged, icon, &ScreenshotIcon::scaleChanged);
+
+                m_items.push_back(icon);
+                m_screenshots.push_back(icon);
+                m_map->getItemsLayer()->addItem(icon);
+                icon->bringToFront();
+            }
+        }
+        else
+        {
+            m_positionIcon->setVisible(false);
+        }
     }
 }
 
@@ -408,7 +466,8 @@ void Route::removeFromMap()
     for (auto item : m_items)
     {
         m_map->getItemsLayer()->removeItem(item);
+        delete item;
     }
     m_items.clear();
-
+    m_screenshots.clear();
 }

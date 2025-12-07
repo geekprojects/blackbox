@@ -4,6 +4,7 @@
 
 #include "mainwindow.h"
 #include "map/routemap.h"
+#include "../common/utils.h"
 
 #include <QDir>
 #include <QNetworkDiskCache>
@@ -14,7 +15,6 @@
 #include <QMenuBar>
 #include <QLabel>
 #include <QGroupBox>
-#include <qicon.h>
 #include <QMessageBox>
 #include <QStandardPaths>
 
@@ -42,6 +42,8 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
 {
     setWindowTitle("BlackBox Flight Tracker");
 
+    setupCachedNetworkAccessManager(this);
+
     /*
     auto trayIconMenu = new QMenu(this);
     trayIconMenu->addAction(new QAction("Hello!"));
@@ -54,68 +56,23 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
     auto menu = menuBar();
     auto fileMenu = menu->addMenu("File");
     fileMenu->addAction("Delete");
+    auto helpMenu = menu->addMenu("Help");
+    helpMenu->addAction("About", [this]
+    {
+        QMessageBox::about(this, "BlackBox Flight Tracker", "BlackBox Flight Tracker v0.1");
+    });
 
     setCentralWidget(new QWidget());
-    auto layout = new QVBoxLayout();
-    centralWidget()->setLayout(layout);
 
-    // Toolbar
-    auto toolbar = addToolBar("Toolbar");
-    toolbar->addWidget(m_liveIndicator = new LiveIndicator());
-
-    m_flightComboBox = new QComboBox();
-    toolbar->addWidget(m_flightComboBox);
-
-    auto refreshAction = new QAction("Refresh");
-    refreshAction->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::ViewRefresh));
-    toolbar->addAction(refreshAction);
-
-    auto editAction = new QAction("Edit");
-    editAction->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::DocumentProperties));
-    toolbar->addAction(editAction);
-
-    auto deleteAction = new QAction("Delete");
-    deleteAction->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::EditDelete));
-    connect(deleteAction, &QAction::triggered, this, &MainWindow::deleteCurrentFlight);
-    toolbar->addAction(deleteAction);
-
-    setupCachedNetworkAccessManager(this);
+    auto mainLayout = new QVBoxLayout();
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    centralWidget()->setLayout(mainLayout);
 
     m_map = new RouteMap(m_blackBoxUI);
-    layout->addWidget(m_map);
+    mainLayout->addWidget(m_map);
 
-    auto hbox = new QHBoxLayout();
-    hbox->setAlignment(Qt::AlignLeft);
-    layout->addLayout(hbox);
-
-    {
-        auto infoBox1 = new QGroupBox();
-        hbox->addWidget(infoBox1);
-        auto infoBox1Layout = new QHBoxLayout();
-        infoBox1->setLayout(infoBox1Layout);
-        infoBox1->setAlignment(Qt::AlignLeft);
-        infoBox1Layout->addWidget(new QLabel("<b>Altitude</b>:"));
-        infoBox1Layout->addWidget(m_altitudeLabel = new QLabel(""));
-    }
-    {
-        auto infoBox1 = new QGroupBox();
-        hbox->addWidget(infoBox1);
-        auto infoBox1Layout = new QHBoxLayout();
-        infoBox1->setLayout(infoBox1Layout);
-        infoBox1->setAlignment(Qt::AlignLeft);
-        infoBox1Layout->addWidget(new QLabel("<b>Speed</b>:"));
-        infoBox1Layout->addWidget(m_speedLabel = new QLabel(""));
-    }
-    {
-        auto infoBox1 = new QGroupBox();
-        hbox->addWidget(infoBox1);
-        auto infoBox1Layout = new QHBoxLayout();
-        infoBox1->setLayout(infoBox1Layout);
-        infoBox1->setAlignment(Qt::AlignLeft);
-        infoBox1Layout->addWidget(new QLabel("<b>Heading</b>:"));
-        infoBox1Layout->addWidget(m_headingLabel = new QLabel(""));
-    }
-
+    buildFlightSelectionWidget();
+    buildInfoWidget();
 
     connect(m_flightComboBox, &QComboBox::currentIndexChanged, this, [this](int index)
     {
@@ -134,15 +91,74 @@ MainWindow::~MainWindow()
 {
 }
 
+void MainWindow::buildFlightSelectionWidget()
+{
+    auto toolbar = new QHBoxLayout();
+    toolbar->setContentsMargins(0, 0, 0, 0);
+    toolbar->setSpacing(0);
+
+    auto toolbarBox = new QGroupBox();
+    toolbar->addWidget(toolbarBox);
+
+    auto toolbarInner = new QHBoxLayout();
+    toolbarBox->setLayout(toolbarInner);
+    toolbarBox->setStyleSheet("QGroupBox {background-color: rgba(100, 100, 100, 128); border-radius: 10px; }");
+
+    toolbarInner->addWidget(m_liveIndicator = new LiveIndicator());
+
+    m_flightComboBox = new QComboBox();
+    m_flightComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    m_flightComboBox->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Preferred);
+    m_flightComboBox->addItem("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM");
+    toolbarInner->addWidget(m_flightComboBox);
+
+    auto flightWidget = new QGVWidget();
+    flightWidget->setLayout(toolbar);
+    flightWidget->setAnchor(QPoint(0, 5), {Qt::TopEdge });
+    m_map->addWidget(flightWidget);
+}
+
+void MainWindow::buildInfoWidget()
+{
+    m_infoWidget = new QGVWidget();
+    auto hbox = new QHBoxLayout();
+    m_infoWidget->setLayout(hbox);
+    m_infoWidget->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Preferred);
+    hbox->setAlignment(Qt::AlignCenter);
+    m_infoWidget->setAnchor(QPoint(0, 0), {Qt::BottomEdge });
+
+    m_altitudeLabel = createInfoBox(hbox, "Altitude");
+    m_speedLabel = createInfoBox(hbox, "Speed");
+    m_headingLabel = createInfoBox(hbox, "Heading");
+    m_map->addWidget(m_infoWidget);
+}
+
+QLabel* MainWindow::createInfoBox(QHBoxLayout* hbox, std::string label)
+{
+    auto infoBox1 = new QGroupBox();
+    //infoBox1->setStyleSheet("QGroupBox { background-color: green; });");
+    infoBox1->setStyleSheet("QGroupBox {background-color: rgba(100, 100, 100, 128); border-radius: 10px; }");
+    hbox->addWidget(infoBox1);
+    auto infoBox1Layout = new QHBoxLayout();
+    infoBox1->setLayout(infoBox1Layout);
+    infoBox1->setAlignment(Qt::AlignLeft);
+    infoBox1->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Preferred);
+    infoBox1Layout->addWidget(new QLabel(QString::fromStdString("<b>" + label + "</b>:")));
+
+    QLabel* labelPtr = new QLabel("99999 units");
+    infoBox1Layout->addWidget(labelPtr);
+    return labelPtr;
+}
+
 bool MainWindow::init()
 {
     m_blackBoxUI->updateFlights();
     updateState();
 
-    //m_map->setMode(MapMode::ALL);
+    m_map->setMode(MapMode::ROUTE);
+
     return true;
 }
-
 
 void MainWindow::updateState()
 {
@@ -158,10 +174,14 @@ void MainWindow::updateState()
     snprintf(buf, sizeof(buf), "%.0f°", state.yaw);
     m_headingLabel->setText(QString(buf));
 
+    m_map->resize(m_map->size());
+
     auto now = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
     auto diff = now - state.timestamp;
     bool live = diff < 10000; // 10 seconds
     m_liveIndicator->setLive(live);
+
+    m_infoWidget->resize(m_infoWidget->size());
 }
 
 void MainWindow::updateFlights()

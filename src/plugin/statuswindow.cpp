@@ -33,7 +33,7 @@ bool StatusWindow::init()
     params.bottom = bottom + 60;
     params.right = left + 350;
     params.top = bottom + 10;
-    params.visible = 0;
+    params.visible = 1;
     params.drawWindowFunc = drawCallback;
     params.handleMouseClickFunc = nullptr;
     params.handleRightClickFunc = nullptr;
@@ -51,12 +51,24 @@ bool StatusWindow::init()
     XPLMSetWindowResizingLimits(m_window, 100, 50, 500, 100);
     XPLMSetWindowTitle(m_window, "BlackBox Flight Recorder");
 
+    XPLMSetWindowIsVisible(m_window, false);
+
     return true;
 }
 
 bool StatusWindow::open()
 {
+    /*
+    int left;
+    int bottom;
+    XPLMGetScreenBoundsGlobal(&left, nullptr, nullptr, &bottom);
+    */
+
     XPLMSetWindowIsVisible(m_window, true);
+    /*
+    XPLMSetWindowGeometry(m_window, left + 10, bottom + 60, left + 350, bottom + 10);
+    */
+
     return true;
 }
 

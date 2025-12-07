@@ -73,7 +73,7 @@ void Writer::main()
         m_plugin->getDataStore().startTransaction();
         for (const Event& event : events)
         {
-            m_plugin->getDataStore().writeState(event.flightId, event.state);
+            m_lastStatusId = m_plugin->getDataStore().writeState(event.flightId, event.state);
         }
         m_plugin->updateFlight();
         m_plugin->getDataStore().commitTransaction();

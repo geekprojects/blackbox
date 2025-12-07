@@ -5,6 +5,7 @@
 #include "plugin.h"
 #include "statuswindow.h"
 #include "writer.h"
+#include "../common/utils.h"
 
 #include <cfloat>
 #include <filesystem>
@@ -21,30 +22,7 @@ BlackBoxPlugin g_bbPlugin;
 constexpr float METRES_TO_FEET = 3.28084f;
 constexpr float MS_TO_KNOTS = 1.943844f;
 
-float degreesToRadians(float degrees)
-{
-    return degrees * M_PI / 180.0f;
-}
-
-double distance(Coordinate c1, Coordinate c2)
-{
-    constexpr float earthRadiusKm = 6371;
-
-    const auto dLat = degreesToRadians(c2.latitude-c1.latitude);
-    const auto dLon = degreesToRadians(c2.longitude-c1.longitude);
-
-    const float lat1 = degreesToRadians(c1.latitude);
-    const float lat2 = degreesToRadians(c2.latitude);
-
-    const auto a =
-        sinf(dLat/2.0f) * sinf(dLat/2.0f) +
-        sinf(dLon/2.0f) * sinf(dLon/2.0f) *
-        cosf(lat1) * cosf(lat2);
-    const auto c = 2.0f * atan2f(sqrtf(a), sqrtf(1-a));
-    return earthRadiusKm * c;
-}
-
-BlackBoxPlugin::BlackBoxPlugin() : Logger("BlackBox")
+BlackBoxPlugin::BlackBoxPlugin() : Logger("BlackBox"), m_screenshotWatcher(this)
 {
     setLogPrinter(&m_logPrinter);
 
@@ -83,7 +61,12 @@ bool BlackBoxPlugin::start()
         return false;
     }
 
-    m_writer = make_unique<Writer>(this);
+    m_writer = make_shared<Writer>(this);
+
+    if (!m_screenshotWatcher.init())
+    {
+        return false;
+    }
 
     m_aircraftICAODataRef = XPLMFindDataRef("sim/aircraft/view/acf_ICAO");
     m_flightIDDataRef = XPLMFindDataRef("sim/cockpit2/tcas/targets/flight_id");
@@ -94,7 +77,7 @@ bool BlackBoxPlugin::start()
     m_iasDataRef = XPLMFindDataRef("sim/flightmodel/position/indicated_airspeed");
     m_parkingBrakeDataRef = XPLMFindDataRef("sim/flightmodel/controls/parkbrake");
     m_verticalFPMDataRef = XPLMFindDataRef("sim/flightmodel/position/vh_ind_fpm");
-    m_gForceDataRef = XPLMFindDataRef("sim/flightmodel2/misc/gforce_normal");
+    m_gForceDataRef = XPLMFindDataRef("sim/flightmodel/forces/g_nrml");
     m_onGroundAnyDataRef = XPLMFindDataRef("sim/flightmodel/failures/onground_any");
     m_onGroundAllDataRef = XPLMFindDataRef("sim/flightmodel/failures/onground_all");
     m_aglDataRef = XPLMFindDataRef("sim/flightmodel/position/y_agl");
@@ -121,7 +104,7 @@ bool BlackBoxPlugin::start()
     int trackFlight = XPLMAppendMenuItem(m_menuId, "Track flight", (void*)2, 1);
     XPLMCheckMenuItem(m_menuId, trackFlight, xplm_Menu_Checked);
 
-    int continueFlight = XPLMAppendMenuItem(m_menuId, "Continue previous flight", (void*)2, 1);
+    int continueFlight = XPLMAppendMenuItem(m_menuId, "Continue previous flight", (void*)3, 1);
 
     m_statusWindow = make_unique<StatusWindow>(this);
 
@@ -133,6 +116,7 @@ bool BlackBoxPlugin::enable()
     reset();
 
     m_writer->start();
+    m_screenshotWatcher.start();
 
     XPLMScheduleFlightLoop(m_updateFlightLoop, -1, true);
     return true;
@@ -143,6 +127,7 @@ bool BlackBoxPlugin::disable()
     XPLMDestroyFlightLoop(m_updateFlightLoop);
 
     m_writer->stop();
+    m_screenshotWatcher.stop();
     return true;
 }
 
@@ -163,7 +148,6 @@ void BlackBoxPlugin::receiveMessage(XPLMPluginID from, int msg, void* param)
         case XPLM_MSG_PLANE_CRASHED:
             log(DEBUG, "receiveMessage: User's plane crashed!");
             m_state.eventType = EventType::CRASH;
-            // TODO: Write it to the DB!
             break;
 
         case XPLM_MSG_AIRPORT_LOADED:
@@ -228,14 +212,6 @@ string BlackBoxPlugin::findNearestAirport(float latitude, float longitude)
     }
 }
 
-std::string getString(const XPLMDataRef ref)
-{
-    int bytes = XPLMGetDatab(ref, nullptr, 0, 0);
-    char buffer[bytes + 1];
-    XPLMGetDatab(ref, buffer, 0, bytes);
-    buffer[bytes] = '\0';
-    return string(buffer);
-}
 
 void BlackBoxPlugin::createFlight()
 {
@@ -244,16 +220,16 @@ void BlackBoxPlugin::createFlight()
     string id = findNearestAirport(latitude, longitude);
 
     m_currentFlight.origin = id;
-    m_currentFlight.icaoType = getString(m_aircraftICAODataRef);
-    m_currentFlight.flightId = getString(m_flightIDDataRef);
+    m_currentFlight.icaoType = Utils::getString(m_aircraftICAODataRef);
+    m_currentFlight.flightId = Utils::getString(m_flightIDDataRef);
     m_currentFlight.startTime = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
     m_datastore.createFlight(m_currentFlight);
 }
 
 void BlackBoxPlugin::updateFlight()
 {
-    string icaoType = getString(m_aircraftICAODataRef);
-    string flightId = getString(m_flightIDDataRef);
+    string icaoType = Utils::getString(m_aircraftICAODataRef);
+    string flightId = Utils::getString(m_flightIDDataRef);
 
     bool update = false;
     if (m_currentFlight.icaoType != icaoType)
@@ -344,6 +320,7 @@ float BlackBoxPlugin::update(float elapsedMe, float elapsedSim, int counter)
     m_state.pitch = pitch;
     m_state.fpm = fpm;
     m_state.fpmAverage = m_fpm.average();
+    m_state.gForce = gForce;
 
     if (m_state.flightPhase == FlightPhase::INIT)
     {
@@ -522,7 +499,7 @@ float BlackBoxPlugin::update(float elapsedMe, float elapsedSim, int counter)
             updatePosition();
             updatedPosition = true;
         }
-        float d = distance(m_state.position, m_lastPosition);
+        float d = Utils::distance(m_state.position, m_lastPosition);
         if (d > 0.1f)
         {
             send = true;

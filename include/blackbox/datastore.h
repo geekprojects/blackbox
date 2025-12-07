@@ -9,6 +9,7 @@
 
 #include "state.h"
 #include "logger.h"
+#include "screenshot.h"
 
 struct Flight
 {
@@ -25,8 +26,12 @@ class DataStore : BlackBox::Logger
     sqlite3* m_db = nullptr;
     sqlite3_stmt* m_writeStatusStatement = nullptr;
     sqlite3_stmt* m_fetchStatusStatement = nullptr;
+    sqlite3_stmt* m_insertScreenshotStatement = nullptr;
+    sqlite3_stmt* m_fetchScreenshotStatement = nullptr;
 
- public:
+    std::mutex m_insertMutex;
+
+public:
     DataStore();
     ~DataStore();
 
@@ -37,8 +42,11 @@ class DataStore : BlackBox::Logger
 
     std::vector<Flight> fetchFlights();
 
-    void writeState(uint64_t flightId, const State &state);
+    uint64_t writeState(uint64_t flightId, const State &state);
     std::vector<State> fetchUpdates(uint64_t flightId, uint64_t sinceTimestamp);
+
+    void writeScreenshot(Screenshot &screenshot);
+    std::vector<Screenshot> fetchScreenshots(uint64_t flightId, uint64_t sinceTimestamp);
 
     void startTransaction();
     void commitTransaction();

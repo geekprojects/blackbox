@@ -27,6 +27,8 @@ class Writer : BlackBox::Logger
     std::mutex m_mutex;
     std::condition_variable m_queueSignal;
 
+    uint64_t m_lastStatusId = 0;
+
     bool m_running = false;
 
     void main();
@@ -40,6 +42,8 @@ class Writer : BlackBox::Logger
     void stop();
 
     void write(const Event& event);
+
+    [[nodiscard]] uint64_t getLastStatusId() const { return m_lastStatusId; }
 };
 
 #endif //BLACKBOX_SENDER_H

@@ -14,13 +14,13 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
 qt_standard_project_setup(REQUIRES 6.8)
 
 find_package(PkgConfig REQUIRED)
+pkg_check_modules(libfswatch REQUIRED libfswatch)
 #pkg_check_modules(libufc REQUIRED libufc)
 #pkg_check_modules(nlohmann_json REQUIRED nlohmann_json)
 
 add_definitions(
         -I/usr/local/include
-        #${libufc_CFLAGS}
-        #${nlohmann_json_CFLAGS}
+        ${libfswatch_CFLAGS}
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -45,6 +45,15 @@ qt_add_executable(blackbox
         src/ui/liveindicator.h
         src/ui/map/landingicon.cpp
         src/ui/map/landingicon.h
+        src/common/utils.cpp
+        src/common/utils.h
+        data/images/landing.png
+        src/ui/map/mapmenu.cpp
+        src/ui/map/mapmenu.h
+        src/ui/map/mapoptions.cpp
+        src/ui/map/mapoptions.h
+        src/ui/map/screenshoticon.cpp
+        src/ui/map/screenshoticon.h
 )
 target_link_libraries(blackbox PRIVATE
         ${GEOVIEW_LIBRARY}
@@ -61,6 +70,8 @@ set_target_properties(blackbox PROPERTIES
         MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
 )
+
+set_source_files_properties(data/images/landing.png PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/images" )
 
 if(UNIX AND APPLE)
     set(XPLM_LDFLAGS ${CMAKE_SOURCE_DIR}/3rdparty/XPlaneSDK/Libraries/Mac/XPLM.framework)
@@ -84,11 +95,17 @@ add_library(bbplugin SHARED
         src/common/logger.cpp
         src/common/datastore.cpp
         include/blackbox/state.h
+        src/common/utils.cpp
+        src/common/utils.h
+        src/plugin/screenshots.cpp
+        src/plugin/screenshots.h
+        include/blackbox/screenshot.h
 )
 
-target_compile_definitions(bbplugin PUBLIC ${XPLM_CFLAGS})
+target_compile_definitions(bbplugin PUBLIC -DPLUGIN=1 ${XPLM_CFLAGS})
 target_include_directories(bbplugin PUBLIC ${XPLANE_INC})
 target_link_libraries(bbplugin
         ${XPLM_LDFLAGS}
         ${SQLITE3_LIBRARY}
+        ${libfswatch_LDFLAGS}
 )

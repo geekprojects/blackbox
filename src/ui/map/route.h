@@ -12,6 +12,8 @@
 #include "routemap.h"
 #include "blackbox/state.h"
 
+class ScreenshotIcon;
+
 struct Point
 {
     QGV::GeoPos position;
@@ -34,7 +36,9 @@ class Route :  public QGVDrawItem
 
     State m_lastState;
     uint64_t m_lastTimestamp = 0;
+    uint64_t m_lastScreenshotTimestamp = 0;
     std::vector<QGVItem*> m_items;
+    std::vector<ScreenshotIcon*> m_screenshots;
 
     QImage* m_planeIcon = nullptr;
     QGVIcon* m_positionIcon = nullptr;
@@ -45,7 +49,6 @@ class Route :  public QGVDrawItem
     QPainterPath projShape() const override;
     void projPaint(QPainter* painter) override;
     QPointF projAnchor() const override;
-    QTransform projTransform() const override;
     QString projTooltip(const QPointF& projPos) const override;
     void projOnMouseClick(const QPointF& projPos) override;
 
