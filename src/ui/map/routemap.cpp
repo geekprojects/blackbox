@@ -8,7 +8,6 @@
 #include <QGeoView/QGVLayerOSM.h>
 #include <QGeoView/QGVWidgetText.h>
 
-#include "mapmenu.h"
 #include "../blackbox.h"
 
 using namespace std;
@@ -40,12 +39,7 @@ RouteMap::RouteMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     copyrightWidget->setAutoFillBackground(true);
     addWidget(copyrightWidget);
 
-    auto mapMenu = new MapMenu();
-    mapMenu->setAnchor(QPoint(5, 5), { Qt::LeftEdge, Qt::TopEdge });
-    addWidget(mapMenu);
-
-    QString qpath = QString::fromStdString("../data/images/camera.svg");
-    m_screenshotIcon = new QImage(qpath);
+    m_screenshotIcon = new QImage(":/images/camera.svg");
 }
 
 RouteMap::~RouteMap()
@@ -113,6 +107,5 @@ void RouteMap::showFlight(uint64_t flightId)
             Route* route = addRoute(flightId);
             route->showRoute();
         }
-
     }
 }

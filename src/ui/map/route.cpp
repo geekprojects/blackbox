@@ -31,7 +31,7 @@ Route::Route(RouteMap* map, uint64_t flightId) : m_map(map), m_flightId(flightId
 {
     setFlag(QGV::ItemFlag::Clickable);
 
-    m_planeIcon = new QImage("../data/images/plane-red.png");
+    m_planeIcon = new QImage(":/images/plane-red.png");
 
     m_positionIcon = new QGVIcon();
     m_positionIcon->loadImage(*m_planeIcon);
@@ -343,7 +343,7 @@ void Route::updateRoute()
             }
             if (state.flightPhase == FlightPhase::TAKE_OFF && m_lastState.flightPhase != FlightPhase::TAKE_OFF)
             {
-                QImage planeIcon("../data/images/airport.png");
+                QImage planeIcon(":/images/airport.png");
                 auto* item = new QGVIcon();
                 item->loadImage(planeIcon);
                 item->setGeometry(QGV::GeoPos(p.position.latitude(), p.position.longitude()), QSizeF(20, 20));
@@ -376,7 +376,6 @@ void Route::updateRoute()
                 QGV::GeoPos(point.position.latitude(), point.position.longitude()),
                 QSizeF(40, 40));
             m_positionIcon->setVisible(true);
-            m_positionIcon->bringToFront();
 
             auto screenshots = ui->getDataStore().fetchScreenshots(m_flightId, m_lastScreenshotTimestamp);
             for (auto screenshot : screenshots)
@@ -393,8 +392,9 @@ void Route::updateRoute()
                 m_items.push_back(icon);
                 m_screenshots.push_back(icon);
                 m_map->getItemsLayer()->addItem(icon);
-                icon->bringToFront();
+                //icon->bringToFront();
             }
+            m_positionIcon->bringToFront();
         }
         else
         {

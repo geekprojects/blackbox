@@ -7,6 +7,7 @@
 
 #include <QBoxLayout>
 #include <QComboBox>
+#include <qgroupbox.h>
 #include <QLabel>
 #include <QMainWindow>
 #include <QSystemTrayIcon>
@@ -14,8 +15,10 @@
 #include <QGeoView/QGVWidget.h>
 
 #include "blackbox.h"
+#include "settingswindow.h"
 #include "blackbox/datastore.h"
 
+class FlightDetailsWidget;
 class LiveIndicator;
 class RouteMap;
 
@@ -30,6 +33,10 @@ class MainWindow : public QMainWindow
     LiveIndicator* m_liveIndicator;
     QComboBox* m_flightComboBox = nullptr;
 
+    QGVWidget* m_flightWidget = nullptr;
+    QGroupBox* m_flightBox = nullptr;
+    FlightDetailsWidget* m_detailsBox = nullptr;
+
     QGVWidget* m_infoWidget = nullptr;
     QLabel* m_altitudeLabel = nullptr;
     QLabel* m_speedLabel = nullptr;
@@ -37,23 +44,27 @@ class MainWindow : public QMainWindow
 
     RouteMap* m_map;
 
-    void deleteCurrentFlight();
+    SettingsWindow* m_settingsWindow = nullptr;
 
 public:
+    explicit MainWindow(BlackBoxUI* blackBoxUI);
+    ~MainWindow() override;
+
+    void closeEvent(QCloseEvent* event) override;
+
+    void selectFlight(uint64_t flightId);
     void updateFlights();
 
     void buildFlightSelectionWidget();
 
     QLabel* createInfoBox(QHBoxLayout* hbox, std::string label);
-
     void buildInfoWidget();
-
-    explicit MainWindow(BlackBoxUI* blackBoxUI);
-    ~MainWindow() override;
 
     bool init();
 
     void updateState();
+
+    void deleteCurrentFlight();
 };
 
 #endif //BLACKBOX_MAINWINDOW_H

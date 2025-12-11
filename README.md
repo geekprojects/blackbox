@@ -13,13 +13,12 @@ you to more readily access your own data.
 * BlackBox currently only works with X-Plane 12 via a plugin.
 * BlackBox stores everything locally in an SQLite database and not other people's servers.
 * There is a Qt-based UI that doesn't have to be running to keep tracking.
+* Record time and location of screenshots and display them on the map.
 
 ### To Do
 In rough order of priority:
-* Configuration
 * Build releasable artifacts
 * Pass judgement on your landings, much like [Stable Approach](https://github.com/Clamb94/StableApproach) but is Open Source.
-* Track screenshots
 * Import SimBrief details
 * Fancier UI features
 * Some way of sharing your flights

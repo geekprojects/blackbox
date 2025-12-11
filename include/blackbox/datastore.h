@@ -19,6 +19,7 @@ struct Flight
     std::string icaoType;
     std::string flightId;
     uint64_t startTime = 0;
+    std::string route;
 };
 
 class DataStore : BlackBox::Logger

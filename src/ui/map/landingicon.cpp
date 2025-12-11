@@ -6,7 +6,7 @@
 
 LandingIcon::LandingIcon(const State &landingState) : m_landingState(landingState)
 {
-    QImage planeIcon("../data/images/landing.png");
+    QImage planeIcon(":/images/landing.png");
     loadImage(planeIcon);
 
     setFlag(QGV::ItemFlag::Clickable, true);
