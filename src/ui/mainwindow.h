@@ -65,6 +65,8 @@ public:
     void updateState();
 
     void deleteCurrentFlight();
+
+    [[nodiscard]] BlackBoxUI* getBlackBoxUI() const { return m_blackBoxUI; }
 };
 
 #endif //BLACKBOX_MAINWINDOW_H

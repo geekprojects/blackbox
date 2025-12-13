@@ -82,7 +82,8 @@ bool DataStore::init(string dbPath)
         "    aircraft_type TEXT,"
         "    aircraft_registration TEXT,"
         "    flight_code TEXT,"
-        "    start_time INTEGER"
+        "    start_time INTEGER,"
+        "    route TEXT"
         ")";
     res = sqlite3_exec(m_db, sql.c_str(), nullptr, nullptr, &err);
     if (res != SQLITE_OK)
@@ -230,9 +231,9 @@ uint64_t DataStore::createFlight(Flight& flight)
 {
     const string sql =
         "INSERT INTO flights"
-        "    (id, origin, destination, aircraft_type, aircraft_registration, flight_code, start_time)"
+        "    (id, origin, destination, aircraft_type, aircraft_registration, flight_code, start_time, route)"
         "  VALUES"
-        "    (NULL, ?, ?, ?, ?, ?, ?)";
+        "    (NULL, ?, ?, ?, ?, ?, ?, ?)";
     sqlite3_stmt *stmt;
     int res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
     if (res != SQLITE_OK)
@@ -246,6 +247,7 @@ uint64_t DataStore::createFlight(Flight& flight)
     sqlite3_bind_text(stmt, 4, flight.registration.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 5, flight.flightId.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_int64(stmt, 6, flight.startTime);
+    sqlite3_bind_text(stmt, 7, flight.route.c_str(), -1, SQLITE_STATIC);
 
     scoped_lock lock(m_insertMutex);
     res = sqlite3_step(stmt);
@@ -290,7 +292,7 @@ void DataStore::updateFlight(const Flight& flight)
 
 std::vector<Flight> DataStore::fetchFlights()
 {
-    string sql = "SELECT id, origin, destination, aircraft_type, aircraft_registration, flight_code, start_time FROM flights ORDER BY id ASC";
+    string sql = "SELECT id, origin, destination, aircraft_type, aircraft_registration, flight_code, start_time, route FROM flights ORDER BY id ASC";
     vector<Flight> flights;
     sqlite3_stmt* stmt;
     int res = sqlite3_prepare_v2(m_db, sql.c_str(), sql.length(), &stmt, nullptr);
@@ -313,6 +315,7 @@ std::vector<Flight> DataStore::fetchFlights()
             flight.registration = getString(stmt, 4);
             flight.flightId = getString(stmt, 5);
             flight.startTime = sqlite3_column_int64(stmt, 6);
+            flight.route = getString(stmt, 7);
             flights.push_back(flight);
         }
         else if (s == SQLITE_DONE)

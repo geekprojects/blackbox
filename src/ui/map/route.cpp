@@ -3,18 +3,16 @@
 //
 
 #include "route.h"
+#include "landingicon.h"
+#include "screenshoticon.h"
+#include "../blackbox.h"
 
-#include <filesystem>
 #include <cfloat>
 
 #include <QTimer>
 
 #include <QGeoView/QGVCamera.h>
 #include <QGeoView/QGVMapQGView.h>
-
-#include "landingicon.h"
-#include "screenshoticon.h"
-#include "../blackbox.h"
 
 using namespace std;
 

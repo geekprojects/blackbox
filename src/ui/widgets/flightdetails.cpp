@@ -12,6 +12,8 @@
 #include <qtextedit.h>
 #include <QVBoxLayout>
 
+#include "../blackbox.h"
+
 FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent) : QWidget(parent), m_mainWindow(mainWindow)
 {
     auto detailsBoxLayout = new QVBoxLayout();
@@ -23,6 +25,10 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     int row = 0;
     grid->addWidget(new QLabel("<b>Aircraft:</b>"), row, 0);
     grid->addWidget(m_aircraftTypeLabel = new QLabel(QString::fromStdString(AircraftTypes::getName("B772"))), row, 1);
+    row++;
+
+    grid->addWidget(new QLabel("<b>Registration:</b>"), row, 0);
+    grid->addWidget(m_registrationLabel = new QLabel("DAL39"), row, 1);
     row++;
 
     grid->addWidget(new QLabel("<b>Call Sign:</b>"), row, 0);
@@ -37,13 +43,23 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     grid->addWidget(m_destLabel = new QLabel("Miami"), row, 1);
     row++;
 
-    grid->addWidget(new QLabel("<b>Route:</b>"), row, 0);
+    QLabel* routeLabel;
+    grid->addWidget(routeLabel = new QLabel("<b>Route:</b>"), row, 0);
 
-    m_routeEdit = new QPlainTextEdit("CPT3G CPT L9 DIDZA N14 OKTAD MEDOG VATRY RESNO NATF LOMSI ANATI CATOG SSENA ART JHW EWC AIR HVQ HLRRY ONDRE1");
+    m_routeEdit = new QPlainTextEdit("");
     QFontMetrics m (m_routeEdit->font()) ;
     int RowHeight = m.lineSpacing() ;
     m_routeEdit->setFixedHeight  (3 * RowHeight) ;
-    grid->addWidget(m_routeEdit, row, 1);
+
+    auto editBox = new QVBoxLayout();
+    editBox->setSpacing(0);
+    editBox->addWidget(m_routeEdit);
+    connect(m_routeEdit, &QPlainTextEdit::textChanged, this, &FlightDetailsWidget::routeChanged);
+    editBox->addWidget(m_updateRouteButton = new QPushButton("Update"));
+    m_updateRouteButton->show();
+    grid->addLayout(editBox, row, 1);
+    grid->setAlignment(routeLabel, Qt::AlignTop);
+
     detailsBoxLayout->addLayout(grid);
     row++;
 
@@ -70,7 +86,27 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
 void FlightDetailsWidget::updateFlight(Flight &flight)
 {
     m_aircraftTypeLabel->setText(QString::fromStdString(AircraftTypes::getName(flight.icaoType)));
+    m_registrationLabel->setText(QString::fromStdString(flight.registration));
     m_callsignLabel->setText(QString::fromStdString(flight.flightId));
     m_originLabel->setText(QString::fromStdString(flight.origin));
     m_destLabel->setText(QString::fromStdString(flight.destination));
+    m_routeEdit->setPlainText(QString::fromStdString(flight.route));
+
+    m_updateRouteButton->hide();
+}
+
+void FlightDetailsWidget::routeChanged()
+{
+    auto route = m_routeEdit->toPlainText();
+    printf("FlightDetailsWidget::routeChanged: route: %s\n", route.toStdString().c_str());
+
+    auto& flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+    if (route.toStdString() != flight.route)
+    {
+        m_updateRouteButton->show();
+    }
+    else
+    {
+        m_updateRouteButton->hide();
+    }
 }

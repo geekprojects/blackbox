@@ -22,7 +22,6 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : m_app(argc, argv)
     parser.addVersionOption();
     parser.process(m_app);
 
-
     QSettings settings("geekprojects", "BlackBox");
     printf("Settings file: %s\n", settings.fileName().toStdString().c_str());
 
