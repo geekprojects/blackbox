@@ -272,7 +272,7 @@ void DataStore::updateFlight(const Flight& flight)
     sqlite3_bind_text(stmt, 2, flight.destination.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, flight.icaoType.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 4, flight.flightId.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 5, flight.id);
+    sqlite3_bind_int64(stmt, 5, flight.id);
 
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE)
@@ -323,7 +323,7 @@ uint64_t DataStore::writeState(uint64_t flightId, const State &state)
     string phaseString = state.getPhaseString();
     string eventString = state.getEventString();
 
-    sqlite3_bind_int(m_writeStatusStatement, 1, flightId);
+    sqlite3_bind_int64(m_writeStatusStatement, 1, flightId);
     sqlite3_bind_text(m_writeStatusStatement, 2, phaseString.c_str(), phaseString.length(), SQLITE_STATIC);
     sqlite3_bind_text(m_writeStatusStatement, 3, eventString.c_str(), eventString.length(), SQLITE_STATIC);
     sqlite3_bind_int64(m_writeStatusStatement, 4, state.timestamp);
@@ -357,7 +357,7 @@ std::vector<State> DataStore::fetchUpdates(uint64_t flightId, uint64_t sinceTime
 {
     vector<State> states;
 
-    sqlite3_bind_int(m_fetchStatusStatement, 1, flightId);
+    sqlite3_bind_int64(m_fetchStatusStatement, 1, flightId);
     sqlite3_bind_int64(m_fetchStatusStatement, 2, sinceTimestamp);
     while (true)
     {
@@ -422,8 +422,8 @@ vector<Screenshot> DataStore::fetchScreenshots(uint64_t flightId, uint64_t since
     vector<Screenshot> screenshots;
     vector<State> states;
 
-    sqlite3_bind_int(m_fetchScreenshotStatement, 1, flightId);
-    sqlite3_bind_int(m_fetchScreenshotStatement, 2, sinceTimestamp);
+    sqlite3_bind_int64(m_fetchScreenshotStatement, 1, flightId);
+    sqlite3_bind_int64(m_fetchScreenshotStatement, 2, sinceTimestamp);
     while (true)
     {
         int s;
@@ -476,13 +476,13 @@ void DataStore::deleteFlight(uint64_t flightId)
     string sql = "DELETE FROM flight_state WHERE flight_id=?";
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(m_db, sql.c_str(), sql.length(), &stmt, nullptr);
-    sqlite3_bind_int(stmt, 1, flightId);
+    sqlite3_bind_int64(stmt, 1, flightId);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     sql = "DELETE FROM flights WHERE id=?";
     sqlite3_prepare_v2(m_db, sql.c_str(), sql.length(), &stmt, nullptr);
-    sqlite3_bind_int(stmt, 1, flightId);
+    sqlite3_bind_int64(stmt, 1, flightId);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
     log(DEBUG, "deleteFlight: Deleted flightId: %d", flightId);
