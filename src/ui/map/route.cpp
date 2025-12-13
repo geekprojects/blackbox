@@ -5,8 +5,8 @@
 #include "route.h"
 
 #include <filesystem>
-#include <float.h>
-#include <QPen>
+#include <cfloat>
+
 #include <QTimer>
 
 #include <QGeoView/QGVCamera.h>
@@ -15,16 +15,15 @@
 #include "landingicon.h"
 #include "screenshoticon.h"
 #include "../blackbox.h"
-#include "../../common/utils.h"
 
 using namespace std;
 
 QColor interpolate(QColor start,QColor end,double ratio)
 {
-    int r = (int)(ratio*start.red() + (1-ratio)*end.red());
-    int g = (int)(ratio*start.green() + (1-ratio)*end.green());
-    int b = (int)(ratio*start.blue() + (1-ratio)*end.blue());
-    return QColor::fromRgb(r,g,b);
+    return QColor::fromRgb(
+        static_cast<int>(ratio * start.red() + (1 - ratio) * end.red()),
+        static_cast<int>(ratio * start.green() + (1 - ratio) * end.green()),
+        static_cast<int>(ratio * start.blue() + (1 - ratio) * end.blue()));
 }
 
 Route::Route(RouteMap* map, uint64_t flightId) : m_map(map), m_flightId(flightId)
@@ -117,7 +116,7 @@ Point Route::getLastPosition()
     {
         return m_points.back();
     }
-    return Point();
+    return {};
 }
 
 void Route::onProjection(QGVMap* geoMap)
@@ -243,19 +242,6 @@ QString Route::projTooltip(const QPointF& projPos) const
         double d = pointdistfromline2D(previous, point.position, geo);
         if (d < 0.1 && d < closestDiff)
         {
-            /*
-            char buf[1024];
-            snprintf(buf, 1024, "Distance: %.2f, altitude: %0.2f", d, point.altitude);
-            printf(
-                "%0.2f, %0.2f -> %0.2f, %0.2f, point=%0.2f, %0.2f: distance=%0.2f\n",
-                previous.latitude(),
-                previous.longitude(),
-                point.position.latitude(),
-                point.position.longitude(),
-                geo.latitude(), geo.longitude(),
-                d);
-            return buf;
-            */
             closestDiff = d;
             closest = point;
             found = true;
@@ -270,26 +256,6 @@ QString Route::projTooltip(const QPointF& projPos) const
         return buf;
     }
     return "";
-}
-
-void Route::projOnMouseClick(const QPointF& projPos)
-{
-    // This method is optional (needed flag is QGV::ItemFlag::Clickable).
-    // Custom reaction to item single mouse click.
-    // To avoid collision with item selection this code applies only if item selection disabled.
-    // In this case we change opacity for item.
-
-    if (!isSelectable()) {
-        /*
-        if (getOpacity() <= 0.5)
-            setOpacity(1.0);
-        else
-            setOpacity(0.5);
-*/
-        qInfo() << "single click" << projPos;
-    } else {
-        setOpacity(1.0);
-    }
 }
 
 void Route::updateRoute()
@@ -319,9 +285,6 @@ void Route::updateRoute()
                 p.altitude = fabs(state.gForce - 0.98f);
                 break;
         }
-
-        //float heading = Utils::radiansToDegreens(Utils::angleFromCoordinate(m_lastState.position, state.position));
-        //p.altitude = fabs(heading - state.yaw);
 
         if (p.altitude < 0.0f)
         {
@@ -377,29 +340,32 @@ void Route::updateRoute()
                 QSizeF(40, 40));
             m_positionIcon->setVisible(true);
 
-            auto screenshots = ui->getDataStore().fetchScreenshots(m_flightId, m_lastScreenshotTimestamp);
-            for (auto screenshot : screenshots)
-            {
-                printf("Found new screenshot: %s\n", screenshot.path.c_str());
-                if (screenshot.timestamp > m_lastScreenshotTimestamp)
-                {
-                    m_lastScreenshotTimestamp = screenshot.timestamp;
-                }
+            updateScreenshots();
 
-                ScreenshotIcon* icon = new ScreenshotIcon(screenshot.path, screenshot.position);
-                connect(m_map, &QGVMap::scaleChanged, icon, &ScreenshotIcon::scaleChanged);
-
-                m_items.push_back(icon);
-                m_screenshots.push_back(icon);
-                m_map->getItemsLayer()->addItem(icon);
-                //icon->bringToFront();
-            }
             m_positionIcon->bringToFront();
         }
         else
         {
             m_positionIcon->setVisible(false);
         }
+    }
+}
+
+void Route::updateScreenshots()
+{
+    BlackBoxUI* ui = m_map->getBlackBoxUI();
+
+    auto screenshots = ui->getDataStore().fetchScreenshots(m_flightId, m_lastScreenshotTimestamp);
+    for (auto const& screenshot : screenshots)
+    {
+        auto icon = new ScreenshotIcon(screenshot.path, screenshot.position);
+        connect(m_map, &QGVMap::scaleChanged, icon, &ScreenshotIcon::scaleChanged);
+
+        m_items.push_back(icon);
+        m_screenshots.push_back(icon);
+        m_map->getItemsLayer()->addItem(icon);
+
+        m_lastScreenshotTimestamp = screenshot.timestamp;
     }
 }
 

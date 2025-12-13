@@ -50,7 +50,8 @@ class Route :  public QGVDrawItem
     void projPaint(QPainter* painter) override;
     QPointF projAnchor() const override;
     QString projTooltip(const QPointF& projPos) const override;
-    void projOnMouseClick(const QPointF& projPos) override;
+
+    void updateScreenshots();
 
 public:
     Route(RouteMap* map, uint64_t flightId);
