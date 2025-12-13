@@ -260,6 +260,12 @@ QString Route::projTooltip(const QPointF& projPos) const
 
 void Route::updateRoute()
 {
+    if (m_lastTimestamp > 0 && !m_map->isVisible())
+    {
+        // updateRoute: Not visible! Not updating!
+        return;
+    }
+
     BlackBoxUI* ui = m_map->getBlackBoxUI();
     auto stateUpdates = ui->getDataStore().fetchUpdates(m_flightId, m_lastTimestamp);
     if (stateUpdates.empty())
