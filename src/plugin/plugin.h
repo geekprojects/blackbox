@@ -98,6 +98,7 @@ class BlackBoxPlugin : public BlackBox::Logger
     ScreenshotWatcher m_screenshotWatcher;
 
     XPLMDataRef m_aircraftICAODataRef = nullptr;
+    XPLMDataRef m_aircraftTailNumberDataRef = nullptr;
     XPLMDataRef m_flightIDDataRef = nullptr;
     XPLMDataRef m_latitudeDataRef = nullptr;
     XPLMDataRef m_longitudeDataRef = nullptr;
@@ -113,13 +114,16 @@ class BlackBoxPlugin : public BlackBox::Logger
     XPLMDataRef m_pitchRateDataRef = nullptr;
     XPLMDataRef m_rollRateDataRef = nullptr;
     XPLMDataRef m_yawRateDataRef = nullptr;
-    XPLMDataRef m_localTimeDataRef = nullptr;
     XPLMDataRef m_pausedDataRef = nullptr;
     XPLMDataRef m_replayDataRef = nullptr;
+
+    XPLMDataRef m_dateDataRef = nullptr;
+    XPLMDataRef m_timeDataRef = nullptr;
 
     XPLMFlightLoopID m_updateFlightLoop = nullptr;
 
     State m_state;
+    uint64_t m_yearTimestamp;
 
     DataSet m_fpm;
 

@@ -17,6 +17,7 @@ struct Flight
     std::string origin;
     std::string destination;
     std::string icaoType;
+    std::string registration;
     std::string flightId;
     uint64_t startTime = 0;
     std::string route;

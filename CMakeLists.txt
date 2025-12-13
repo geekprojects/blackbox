@@ -120,6 +120,8 @@ add_library(bbplugin SHARED
         src/plugin/screenshots.cpp
         src/plugin/screenshots.h
         include/blackbox/screenshot.h
+        src/ui/importers/volanta.cpp
+        src/ui/importers/volanta.h
 )
 
 target_compile_definitions(bbplugin PUBLIC -DPLUGIN=1 ${XPLM_CFLAGS})

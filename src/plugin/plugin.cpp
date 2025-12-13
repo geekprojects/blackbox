@@ -12,6 +12,7 @@
 
 #include <XPLMPlugin.h>
 #include <XPLMNavigation.h>
+#include <chrono>
 
 using namespace std;
 using namespace BlackBox;
@@ -35,8 +36,22 @@ void BlackBoxPlugin::reset()
 {
     m_state.flightPhase = FlightPhase::INIT;
     m_fpm.reset();
-}
 
+    // X-Plane doesn't have a concept of "year", we have to assume the current year
+    auto now = chrono::system_clock::now();
+    auto today = time_point_cast<chrono::days>(now);
+    auto ymd = chrono::year_month_day(today);
+    int year = static_cast<int>(ymd.year());
+
+    struct tm tm;
+    tm.tm_year = year - 1900;
+    tm.tm_mon = 0;
+    tm.tm_mday = 1;
+    tm.tm_hour = 0;
+    tm.tm_min = 0;
+    tm.tm_sec = 0;
+    m_yearTimestamp = mktime(&tm);
+}
 
 bool BlackBoxPlugin::start()
 {
@@ -69,6 +84,7 @@ bool BlackBoxPlugin::start()
     }
 
     m_aircraftICAODataRef = XPLMFindDataRef("sim/aircraft/view/acf_ICAO");
+    m_aircraftTailNumberDataRef = XPLMFindDataRef("sim/aircraft/view/acf_tailnum");
     m_flightIDDataRef = XPLMFindDataRef("sim/cockpit2/tcas/targets/flight_id");
     m_latitudeDataRef = XPLMFindDataRef("sim/flightmodel/position/latitude");
     m_longitudeDataRef = XPLMFindDataRef("sim/flightmodel/position/longitude");
@@ -84,9 +100,11 @@ bool BlackBoxPlugin::start()
     m_pitchRateDataRef = XPLMFindDataRef("sim/flightmodel/position/true_theta");
     m_rollRateDataRef = XPLMFindDataRef("sim/flightmodel/position/true_phi");
     m_yawRateDataRef = XPLMFindDataRef("sim/flightmodel/position/true_psi");
-    m_localTimeDataRef = XPLMFindDataRef("sim/time/local_time_sec");
     m_pausedDataRef = XPLMFindDataRef("sim/time/paused");
     m_replayDataRef = XPLMFindDataRef("sim/time/is_in_replay");
+
+    m_dateDataRef = XPLMFindDataRef("sim/time/local_date_days");
+    m_timeDataRef = XPLMFindDataRef("sim/time/zulu_time_sec");
 
     XPLMCreateFlightLoop_t flightLoop;
     flightLoop.structSize = sizeof(flightLoop);
@@ -170,6 +188,16 @@ void BlackBoxPlugin::sendEvent(float elapsedSim)
 {
     m_state.timestamp = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
 
+    // Calculate a sim timestamp
+    // TODO: Figure out leap years!
+    float timeOfDay = XPLMGetDataf(m_timeDataRef);
+    int dayOfYear = XPLMGetDatai(m_dateDataRef);
+
+    m_state.simTime = m_yearTimestamp;
+    m_state.simTime += dayOfYear * 86400;
+    m_state.simTime += static_cast<int>(timeOfDay);
+    m_state.simTime *= 1000;
+
     Event event;
     event.flightId = m_currentFlight.id;
     event.state = m_state;
@@ -221,6 +249,7 @@ void BlackBoxPlugin::createFlight()
 
     m_currentFlight.origin = id;
     m_currentFlight.icaoType = Utils::getString(m_aircraftICAODataRef);
+    m_currentFlight.registration = Utils::getString(m_aircraftTailNumberDataRef);
     m_currentFlight.flightId = Utils::getString(m_flightIDDataRef);
     m_currentFlight.startTime = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
     m_datastore.createFlight(m_currentFlight);
@@ -229,6 +258,7 @@ void BlackBoxPlugin::createFlight()
 void BlackBoxPlugin::updateFlight()
 {
     string icaoType = Utils::getString(m_aircraftICAODataRef);
+    string registration = Utils::getString(m_aircraftTailNumberDataRef);
     string flightId = Utils::getString(m_flightIDDataRef);
 
     bool update = false;
@@ -243,12 +273,21 @@ void BlackBoxPlugin::updateFlight()
         log(DEBUG, "updateFlight: flightId has changed! %s -> %s", m_currentFlight.flightId.c_str(), flightId.c_str());
         update = true;
     }
+    if (m_currentFlight.registration != registration && !registration.empty())
+    {
+        log(DEBUG, "updateFlight: Aircraft registration has changed! %s -> %s", m_currentFlight.registration.c_str(), flightId.c_str());
+        update = true;
+    }
     if (update)
     {
         m_currentFlight.icaoType = icaoType;
         if (!flightId.empty())
         {
             m_currentFlight.flightId = flightId;
+        }
+        if (!registration.empty())
+        {
+            m_currentFlight.registration = registration;
         }
         m_datastore.updateFlight(m_currentFlight);
     }

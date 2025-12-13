@@ -54,6 +54,7 @@ struct State
     EventType eventType;
 
     uint64_t timestamp;
+    uint64_t simTime;
 
     void setPhase(std::string const& phase)
     {

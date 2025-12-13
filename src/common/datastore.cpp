@@ -80,6 +80,7 @@ bool DataStore::init(string dbPath)
         "    origin TEXT,"
         "    destination TEXT,"
         "    aircraft_type TEXT,"
+        "    aircraft_registration TEXT,"
         "    flight_code TEXT,"
         "    start_time INTEGER"
         ")";
@@ -97,6 +98,7 @@ bool DataStore::init(string dbPath)
         "    phase TEXT,"
         "    event TEXT,"
         "    timestamp INTEGER,"
+        "    sim_time INTEGER,"
         "    latitude REAL,"
         "    longitude REAL,"
         "    altitude REAL,"
@@ -128,9 +130,9 @@ bool DataStore::init(string dbPath)
     sql =
         "INSERT"
         "  INTO flight_state"
-        "    (id, flight_id, phase, event, timestamp, latitude, longitude, altitude, agl, fpm, fpm_average, g_force, pitch, yaw, roll, ground_speed, indicated_air_speed)"
+        "    (id, flight_id, phase, event, timestamp, sim_time, latitude, longitude, altitude, agl, fpm, fpm_average, g_force, pitch, yaw, roll, ground_speed, indicated_air_speed)"
         "  VALUES"
-        "    (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "    (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &m_writeStatusStatement, nullptr);
     if (res != SQLITE_OK)
     {
@@ -158,6 +160,7 @@ bool DataStore::init(string dbPath)
         "    phase,"
         "    event,"
         "    timestamp,"
+        "    sim_time,"
         "    latitude,"
         "    longitude,"
         "    altitude,"
@@ -227,9 +230,9 @@ uint64_t DataStore::createFlight(Flight& flight)
 {
     const string sql =
         "INSERT INTO flights"
-        "    (id, origin, destination, aircraft_type, flight_code, start_time)"
+        "    (id, origin, destination, aircraft_type, aircraft_registration, flight_code, start_time)"
         "  VALUES"
-        "    (NULL, ?, ?, ?, ?, ?)";
+        "    (NULL, ?, ?, ?, ?, ?, ?)";
     sqlite3_stmt *stmt;
     int res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
     if (res != SQLITE_OK)
@@ -240,8 +243,9 @@ uint64_t DataStore::createFlight(Flight& flight)
     sqlite3_bind_text(stmt, 1, flight.origin.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, flight.destination.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, flight.icaoType.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, flight.flightId.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 5, flight.startTime);
+    sqlite3_bind_text(stmt, 4, flight.registration.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, flight.flightId.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 6, flight.startTime);
 
     scoped_lock lock(m_insertMutex);
     res = sqlite3_step(stmt);
@@ -259,7 +263,7 @@ uint64_t DataStore::createFlight(Flight& flight)
 
 void DataStore::updateFlight(const Flight& flight)
 {
-    string sql = "UPDATE flights SET origin=?, destination=?, aircraft_type=?, flight_code=? WHERE id=?";
+    string sql = "UPDATE flights SET origin=?, destination=?, aircraft_type=?, aircraft_registration=?, flight_code=? WHERE id=?";
     sqlite3_stmt *stmt;
     int res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
     if (res != SQLITE_OK)
@@ -271,8 +275,9 @@ void DataStore::updateFlight(const Flight& flight)
     sqlite3_bind_text(stmt, 1, flight.origin.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, flight.destination.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, flight.icaoType.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, flight.flightId.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 5, flight.id);
+    sqlite3_bind_text(stmt, 4, flight.registration.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, flight.flightId.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 6, flight.id);
 
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE)
@@ -285,7 +290,7 @@ void DataStore::updateFlight(const Flight& flight)
 
 std::vector<Flight> DataStore::fetchFlights()
 {
-    string sql = "SELECT id, origin, destination, aircraft_type, flight_code, start_time FROM flights ORDER BY id ASC";
+    string sql = "SELECT id, origin, destination, aircraft_type, aircraft_registration, flight_code, start_time FROM flights ORDER BY id ASC";
     vector<Flight> flights;
     sqlite3_stmt* stmt;
     int res = sqlite3_prepare_v2(m_db, sql.c_str(), sql.length(), &stmt, nullptr);
@@ -305,8 +310,9 @@ std::vector<Flight> DataStore::fetchFlights()
             flight.origin = getString(stmt, 1);
             flight.destination = getString(stmt, 2);
             flight.icaoType = getString(stmt, 3);
-            flight.flightId = getString(stmt, 4);
-            flight.startTime = sqlite3_column_int64(stmt, 5);
+            flight.registration = getString(stmt, 4);
+            flight.flightId = getString(stmt, 5);
+            flight.startTime = sqlite3_column_int64(stmt, 6);
             flights.push_back(flight);
         }
         else if (s == SQLITE_DONE)
@@ -323,22 +329,24 @@ uint64_t DataStore::writeState(uint64_t flightId, const State &state)
     string phaseString = state.getPhaseString();
     string eventString = state.getEventString();
 
-    sqlite3_bind_int64(m_writeStatusStatement, 1, flightId);
-    sqlite3_bind_text(m_writeStatusStatement, 2, phaseString.c_str(), phaseString.length(), SQLITE_STATIC);
-    sqlite3_bind_text(m_writeStatusStatement, 3, eventString.c_str(), eventString.length(), SQLITE_STATIC);
-    sqlite3_bind_int64(m_writeStatusStatement, 4, state.timestamp);
-    sqlite3_bind_double(m_writeStatusStatement, 5, state.position.latitude);
-    sqlite3_bind_double(m_writeStatusStatement, 6, state.position.longitude);
-    sqlite3_bind_double(m_writeStatusStatement, 7, state.position.altitude);
-    sqlite3_bind_double(m_writeStatusStatement, 8, state.agl);
-    sqlite3_bind_double(m_writeStatusStatement, 9, state.fpm);
-    sqlite3_bind_double(m_writeStatusStatement, 10, state.fpmAverage);
-    sqlite3_bind_double(m_writeStatusStatement, 11, state.gForce);
-    sqlite3_bind_double(m_writeStatusStatement, 12, state.pitch);
-    sqlite3_bind_double(m_writeStatusStatement, 13, state.yaw);
-    sqlite3_bind_double(m_writeStatusStatement, 14, state.roll);
-    sqlite3_bind_double(m_writeStatusStatement, 15, state.groundSpeed);
-    sqlite3_bind_double(m_writeStatusStatement, 16, state.indicatedAirSpeed);
+    int col = 1;
+    sqlite3_bind_int64(m_writeStatusStatement, col++, flightId);
+    sqlite3_bind_text(m_writeStatusStatement, col++, phaseString.c_str(), phaseString.length(), SQLITE_STATIC);
+    sqlite3_bind_text(m_writeStatusStatement, col++, eventString.c_str(), eventString.length(), SQLITE_STATIC);
+    sqlite3_bind_int64(m_writeStatusStatement, col++, state.timestamp);
+    sqlite3_bind_int64(m_writeStatusStatement, col++, state.simTime);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.position.latitude);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.position.longitude);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.position.altitude);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.agl);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.fpm);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.fpmAverage);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.gForce);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.pitch);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.yaw);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.roll);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.groundSpeed);
+    sqlite3_bind_double(m_writeStatusStatement, col++, state.indicatedAirSpeed);
 
     scoped_lock lock(m_insertMutex);
     int res = sqlite3_step(m_writeStatusStatement);
@@ -365,26 +373,28 @@ std::vector<State> DataStore::fetchUpdates(uint64_t flightId, uint64_t sinceTime
         s = sqlite3_step(m_fetchStatusStatement);
         if (s == SQLITE_ROW)
         {
+            int col = 0;
             State state;
-            string phase = getString(m_fetchStatusStatement, 0);
+            string phase = getString(m_fetchStatusStatement, col++);
             state.setPhase(phase);
-            string event = getString(m_fetchStatusStatement, 1);
+            string event = getString(m_fetchStatusStatement, col++);
             state.setEventType(event);
 
-            state.timestamp = sqlite3_column_int64(m_fetchStatusStatement, 2);
+            state.timestamp = sqlite3_column_int64(m_fetchStatusStatement, col++);
+            state.simTime = sqlite3_column_int64(m_fetchStatusStatement, col++);
 
-            state.position.latitude = sqlite3_column_double(m_fetchStatusStatement, 3);
-            state.position.longitude = sqlite3_column_double(m_fetchStatusStatement, 4);
-            state.position.altitude = sqlite3_column_double(m_fetchStatusStatement, 5);
-            state.agl = sqlite3_column_double(m_fetchStatusStatement, 6);
-            state.fpm = sqlite3_column_double(m_fetchStatusStatement, 7);
-            state.fpmAverage = sqlite3_column_double(m_fetchStatusStatement, 8);
-            state.gForce = sqlite3_column_double(m_fetchStatusStatement, 9);
-            state.pitch = sqlite3_column_double(m_fetchStatusStatement, 10);
-            state.yaw = sqlite3_column_double(m_fetchStatusStatement, 11);
-            state.roll = sqlite3_column_double(m_fetchStatusStatement, 12);
-            state.groundSpeed = sqlite3_column_double(m_fetchStatusStatement, 13);
-            state.indicatedAirSpeed = sqlite3_column_double(m_fetchStatusStatement, 14);
+            state.position.latitude = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.position.longitude = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.position.altitude = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.agl = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.fpm = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.fpmAverage = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.gForce = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.pitch = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.yaw = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.roll = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.groundSpeed = sqlite3_column_double(m_fetchStatusStatement, col++);
+            state.indicatedAirSpeed = sqlite3_column_double(m_fetchStatusStatement, col++);
             states.push_back(state);
         }
         else if (s == SQLITE_DONE)
