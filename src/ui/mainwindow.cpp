@@ -72,7 +72,7 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
     mainLayout->setContentsMargins(0, 0, 0, 0);
     centralWidget()->setLayout(mainLayout);
 
-    m_map = new RouteMap(m_blackBoxUI);
+    m_map = new FlightMap(m_blackBoxUI);
     mainLayout->addWidget(m_map);
 
     buildFlightSelectionWidget();

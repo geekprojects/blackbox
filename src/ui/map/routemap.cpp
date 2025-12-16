@@ -3,7 +3,7 @@
 //
 
 #include "routemap.h"
-#include "route.h"
+#include "track.h"
 
 #include <QGeoView/QGVLayerOSM.h>
 #include <QGeoView/QGVWidgetText.h>
@@ -12,7 +12,7 @@
 
 using namespace std;
 
-RouteMap::RouteMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
+FlightMap::FlightMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
 {
     setMouseAction(QGV::MouseAction::Tooltip, true);
     setMouseAction(QGV::MouseAction::ContextMenu, true);
@@ -42,11 +42,11 @@ RouteMap::RouteMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     m_screenshotIcon = new QImage(":/images/camera.svg");
 }
 
-RouteMap::~RouteMap()
+FlightMap::~FlightMap()
 {
 }
 
-void RouteMap::setMode(MapMode mode)
+void FlightMap::setMode(MapMode mode)
 {
     if (m_mode == mode)
     {
@@ -62,10 +62,9 @@ void RouteMap::setMode(MapMode mode)
             addRoute(flight);
         }
     }
-
 }
 
-void RouteMap::clearRoutes()
+void FlightMap::clearRoutes()
 {
     for (auto route : m_routes)
     {
@@ -76,16 +75,16 @@ void RouteMap::clearRoutes()
     m_routes.clear();
 }
 
-Route* RouteMap::addRoute(shared_ptr<Flight> flight)
+Track* FlightMap::addRoute(shared_ptr<Flight> flight)
 {
-    Route* route = new Route(this, flight);
+    Track* route = new Track(this, flight);
     route->updateRoute();
     m_routesLayer->addItem(route);
     m_routes.push_back(route);
     return route;
 }
 
-void RouteMap::showFlight(uint64_t flightId)
+void FlightMap::showFlight(uint64_t flightId)
 {
     for (auto route : m_routes)
     {
@@ -103,7 +102,7 @@ void RouteMap::showFlight(uint64_t flightId)
         auto flight = m_blackBoxUI->getFlight(flightId);
         if (flight != nullptr)
         {
-            Route* route = addRoute(flight);
+            Track* route = addRoute(flight);
             route->showRoute();
         }
     }

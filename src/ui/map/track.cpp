@@ -2,7 +2,7 @@
 // Created by Ian Parker on 14/11/2025.
 //
 
-#include "route.h"
+#include "track.h"
 #include "landingicon.h"
 #include "screenshoticon.h"
 #include "../blackbox.h"
@@ -24,7 +24,7 @@ QColor interpolate(QColor start,QColor end,double ratio)
         static_cast<int>(ratio * start.blue() + (1 - ratio) * end.blue()));
 }
 
-Route::Route(RouteMap* map, shared_ptr<Flight> flight) : m_map(map), m_flight(flight)
+Track::Track(FlightMap* map, shared_ptr<Flight> flight) : m_map(map), m_flight(flight)
 {
     setFlag(QGV::ItemFlag::Clickable);
 
@@ -37,11 +37,11 @@ Route::Route(RouteMap* map, shared_ptr<Flight> flight) : m_map(map), m_flight(fl
     m_items.push_back(m_positionIcon);
 
     m_updateTimer = new QTimer(this);
-    connect(m_updateTimer, &QTimer::timeout, this, &Route::updateRoute);
+    connect(m_updateTimer, &QTimer::timeout, this, &Track::updateRoute);
     m_updateTimer->start(1000);
 }
 
-void Route::addPoints(std::vector<Point> points)
+void Track::addPoints(std::vector<Point> points)
 {
     m_points.insert(m_points.end(), points.begin(), points.end());
     printf("addPoints: Added %ld points, we now have %ld\n", points.size(), m_points.size());
@@ -96,19 +96,19 @@ void Route::addPoints(std::vector<Point> points)
     }
 }
 
-void Route::clear()
+void Track::clear()
 {
     m_points.clear();
     m_boundingRect = QGV::GeoRect();
     refresh();
 }
 
-QGV::GeoRect Route::getRect() const
+QGV::GeoRect Track::getRect() const
 {
     return m_boundingRect;
 }
 
-Point Route::getLastPosition()
+Point Track::getLastPosition()
 {
     if (!m_points.empty())
     {
@@ -117,7 +117,7 @@ Point Route::getLastPosition()
     return {};
 }
 
-void Route::onProjection(QGVMap* geoMap)
+void Track::onProjection(QGVMap* geoMap)
 {
     QGVDrawItem::onProjection(geoMap);
     for (auto& point : m_points)
@@ -130,7 +130,7 @@ void Route::onProjection(QGVMap* geoMap)
         geoMap->getProjection()->geoToProj(m_boundingRect.bottomRight()));
 }
 
-QPainterPath Route::projShape() const
+QPainterPath Track::projShape() const
 {
     QPainterPath path;
 
@@ -150,7 +150,7 @@ QPainterPath Route::projShape() const
 }
 
 
-void Route::projPaint(QPainter* painter)
+void Track::projPaint(QPainter* painter)
 {
     if (m_points.empty())
     {
@@ -196,7 +196,7 @@ void Route::projPaint(QPainter* painter)
     }
 }
 
-QPointF Route::projAnchor() const
+QPointF Track::projAnchor() const
 {
     return m_boundingRectProjected.center();
 }
@@ -227,7 +227,7 @@ double pointdistfromline2D(const QGV::GeoPos& a, const QGV::GeoPos& b, const QGV
     return sqrt(PxminusQx*PxminusQx + PyminusQy*PyminusQy);
 }
 
-QString Route::projTooltip(const QPointF& projPos) const
+QString Track::projTooltip(const QPointF& projPos) const
 {
     auto geo = getMap()->getProjection()->projToGeo(projPos);
 
@@ -256,7 +256,7 @@ QString Route::projTooltip(const QPointF& projPos) const
     return "";
 }
 
-void Route::updateRoute()
+void Track::updateRoute()
 {
     if (m_lastTimestamp > 0 && !m_map->isVisible())
     {
@@ -355,7 +355,7 @@ void Route::updateRoute()
     }
 }
 
-void Route::updateScreenshots()
+void Track::updateScreenshots()
 {
     BlackBoxUI* ui = m_map->getBlackBoxUI();
 
@@ -373,7 +373,7 @@ void Route::updateScreenshots()
     }
 }
 
-void Route::showRoute()
+void Track::showRoute()
 {
     QTimer::singleShot(100, this, [this]()
     {
@@ -430,7 +430,7 @@ void Route::showRoute()
     });
 }
 
-void Route::removeFromMap()
+void Track::removeFromMap()
 {
     m_updateTimer->stop();
     for (auto item : m_items)

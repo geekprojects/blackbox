@@ -20,7 +20,7 @@
 
 class FlightDetailsWidget;
 class LiveIndicator;
-class RouteMap;
+class FlightMap;
 
 class MainWindow : public QMainWindow
 {
@@ -42,7 +42,7 @@ class MainWindow : public QMainWindow
     QLabel* m_speedLabel = nullptr;
     QLabel* m_headingLabel = nullptr;
 
-    RouteMap* m_map = nullptr;
+    FlightMap* m_map = nullptr;
 
     SettingsWindow* m_settingsWindow = nullptr;
 

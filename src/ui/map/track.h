@@ -23,9 +23,9 @@ struct Point
     QPointF projected;
 };
 
-class Route :  public QGVDrawItem
+class Track :  public QGVDrawItem
 {
-    RouteMap* m_map = nullptr;
+    FlightMap* m_map = nullptr;
     std::shared_ptr<Flight> m_flight;
 
     std::vector<Point> m_points;
@@ -54,7 +54,7 @@ class Route :  public QGVDrawItem
     void updateScreenshots();
 
 public:
-    Route(RouteMap* map, std::shared_ptr<Flight> flightId);
+    Track(FlightMap* map, std::shared_ptr<Flight> flightId);
 
     //void set(std::vector<Point> points);
     void addPoints(std::vector<Point> points);

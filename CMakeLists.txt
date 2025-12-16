@@ -44,8 +44,8 @@ qt_add_executable(BlackBox
         src/ui/mainwindow.h
         src/ui/map/landingicon.cpp
         src/ui/map/landingicon.h
-        src/ui/map/route.cpp
-        src/ui/map/route.h
+        src/ui/map/track.cpp
+        src/ui/map/track.h
         src/ui/map/routemap.cpp
         src/ui/map/routemap.h
         src/ui/map/screenshoticon.cpp

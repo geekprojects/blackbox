@@ -34,7 +34,7 @@ void ScreenshotIcon::scaleChanged()
     {
         if (m_thumbnail)
         {
-            loadImage(*((RouteMap*)getMap())->getScreenshotIcon());
+            loadImage(*((FlightMap*)getMap())->getScreenshotIcon());
             QSizeF size(20, 20);
             setGeometry(QGV::GeoPos(m_coordinate.latitude, m_coordinate.longitude), size);
             m_thumbnail = false;
