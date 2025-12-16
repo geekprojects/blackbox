@@ -53,8 +53,8 @@ struct State
     FlightPhase flightPhase = FlightPhase::INIT;
     EventType eventType;
 
-    uint64_t timestamp;
-    uint64_t simTime;
+    uint64_t timestamp = 0;
+    uint64_t simTime = 0;
 
     void setPhase(std::string const& phase)
     {

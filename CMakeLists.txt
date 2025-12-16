@@ -15,12 +15,13 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libfswatch REQUIRED libfswatch)
+pkg_check_modules(nlohmann_json REQUIRED nlohmann_json)
 #pkg_check_modules(libufc REQUIRED libufc)
-#pkg_check_modules(nlohmann_json REQUIRED nlohmann_json)
 
 add_definitions(
         -I/usr/local/include
         ${libfswatch_CFLAGS}
+        ${nlohmann_json_CFLAGS}
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -55,6 +56,8 @@ qt_add_executable(BlackBox
         src/ui/widgets/flightdetails.h
         src/ui/settingswindow.cpp
         src/ui/settingswindow.h
+        src/ui/importers/volanta.cpp
+        src/ui/importers/volanta.h
 )
 
 qt_add_resources(BlackBox "images"
@@ -81,6 +84,7 @@ target_link_libraries(BlackBox PRIVATE
         Qt6::Widgets
         Qt6::Network
         ${SQLITE3_LIBRARY}
+        ${nlohmann_json_LDFLAGS}
 )
 
 set_target_properties(BlackBox PROPERTIES
@@ -120,8 +124,6 @@ add_library(bbplugin SHARED
         src/plugin/screenshots.cpp
         src/plugin/screenshots.h
         include/blackbox/screenshot.h
-        src/ui/importers/volanta.cpp
-        src/ui/importers/volanta.h
 )
 
 target_compile_definitions(bbplugin PUBLIC -DPLUGIN=1 ${XPLM_CFLAGS})

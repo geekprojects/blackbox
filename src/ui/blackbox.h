@@ -11,28 +11,47 @@
 
 class MainWindow;
 
-class BlackBoxUI
+class BlackBoxUI : public QApplication
 {
-    QApplication m_app;
     MainWindow* m_mainWindow = nullptr;
 
     DataStore m_dataStore;
 
     State m_latestState;
 
-    std::map<uint64_t, Flight> m_flights;
-    Flight m_currentFlight;
+    std::vector<std::shared_ptr<Flight>> m_flights;
+    std::map<uint64_t, std::shared_ptr<Flight>> m_flightIndex;
+    std::shared_ptr<Flight> m_currentFlight;
+
+    void setupCachedNetworkAccessManager();
 
  public:
     BlackBoxUI(int argc, char** argv);
-    ~BlackBoxUI() = default;
+    ~BlackBoxUI() override = default;
 
     int run();
 
     void updateFlights();
-    Flight& getCurrentFlight() { return m_currentFlight; }
-    void setCurrentFlightId(uint64_t flightId) { m_currentFlight = m_flights.at(flightId); }
-    std::map<uint64_t, Flight> getFlights() const { return m_flights; }
+    std::shared_ptr<Flight> getCurrentFlight() { return m_currentFlight; }
+    void setCurrentFlightId(uint64_t flightId)
+    {
+        auto it = m_flightIndex.find(flightId);
+        if (it != m_flightIndex.end())
+        {
+            m_currentFlight = it->second;
+        }
+    }
+
+    std::shared_ptr<Flight> getFlight(uint64_t flightId) const
+    {
+        auto it = m_flightIndex.find(flightId);
+        if (it != m_flightIndex.end())
+        {
+            return it->second;
+        }
+        return nullptr;
+    }
+    std::vector<std::shared_ptr<Flight>> getFlights() const { return m_flights; }
 
     void setState(const State& state);
     const State& getState() const { return m_latestState; }

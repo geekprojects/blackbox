@@ -24,7 +24,7 @@ QColor interpolate(QColor start,QColor end,double ratio)
         static_cast<int>(ratio * start.blue() + (1 - ratio) * end.blue()));
 }
 
-Route::Route(RouteMap* map, uint64_t flightId) : m_map(map), m_flightId(flightId)
+Route::Route(RouteMap* map, shared_ptr<Flight> flight) : m_map(map), m_flight(flight)
 {
     setFlag(QGV::ItemFlag::Clickable);
 
@@ -265,7 +265,7 @@ void Route::updateRoute()
     }
 
     BlackBoxUI* ui = m_map->getBlackBoxUI();
-    auto stateUpdates = ui->getDataStore().fetchUpdates(m_flightId, m_lastTimestamp);
+    auto stateUpdates = ui->getDataStore().fetchUpdates(m_flight->id, m_lastTimestamp);
     if (stateUpdates.empty())
     {
         return;
@@ -359,7 +359,7 @@ void Route::updateScreenshots()
 {
     BlackBoxUI* ui = m_map->getBlackBoxUI();
 
-    auto screenshots = ui->getDataStore().fetchScreenshots(m_flightId, m_lastScreenshotTimestamp);
+    auto screenshots = ui->getDataStore().fetchScreenshots(m_flight->id, m_lastScreenshotTimestamp);
     for (auto const& screenshot : screenshots)
     {
         auto icon = new ScreenshotIcon(screenshot.path, screenshot.position);

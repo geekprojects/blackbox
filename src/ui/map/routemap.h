@@ -9,6 +9,7 @@
 #include <QGeoView/QGVMap.h>
 #include <QGeoView/Raster/QGVIcon.h>
 
+#include "blackbox/datastore.h"
 #include "blackbox/state.h"
 
 class QGVLayerTilesOnline;
@@ -54,7 +55,7 @@ public:
 
     void clearRoutes();
 
-    Route* addRoute(uint64_t flightId);
+    Route* addRoute(std::shared_ptr<Flight> flight);
 
     void showFlight(uint64_t flightId);
 

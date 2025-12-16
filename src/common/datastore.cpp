@@ -292,7 +292,18 @@ void DataStore::updateFlight(const Flight& flight)
 
 std::vector<Flight> DataStore::fetchFlights()
 {
-    string sql = "SELECT id, origin, destination, aircraft_type, aircraft_registration, flight_code, start_time, route FROM flights ORDER BY id ASC";
+    string sql =
+        "SELECT"
+        "    id,"
+        "    origin,"
+        "    destination,"
+        "    aircraft_type,"
+        "    aircraft_registration,"
+        "    flight_code,"
+        "    start_time,"
+        "    route"
+        "  FROM flights"
+        "  ORDER BY start_time ASC";
     vector<Flight> flights;
     sqlite3_stmt* stmt;
     int res = sqlite3_prepare_v2(m_db, sql.c_str(), sql.length(), &stmt, nullptr);

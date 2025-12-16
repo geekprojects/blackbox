@@ -26,11 +26,11 @@ class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
-    BlackBoxUI* m_blackBoxUI;
+    BlackBoxUI* m_blackBoxUI = nullptr;
 
-    QSystemTrayIcon* m_sysTrayIcon;
+    QSystemTrayIcon* m_sysTrayIcon = nullptr;
 
-    LiveIndicator* m_liveIndicator;
+    LiveIndicator* m_liveIndicator = nullptr;
     QComboBox* m_flightComboBox = nullptr;
 
     QGVWidget* m_flightWidget = nullptr;
@@ -42,9 +42,11 @@ class MainWindow : public QMainWindow
     QLabel* m_speedLabel = nullptr;
     QLabel* m_headingLabel = nullptr;
 
-    RouteMap* m_map;
+    RouteMap* m_map = nullptr;
 
     SettingsWindow* m_settingsWindow = nullptr;
+
+    void importVolanta();
 
 public:
     explicit MainWindow(BlackBoxUI* blackBoxUI);

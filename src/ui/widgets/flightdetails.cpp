@@ -9,10 +9,11 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
-#include <qtextedit.h>
 #include <QVBoxLayout>
 
 #include "../blackbox.h"
+
+using namespace std;
 
 FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent) : QWidget(parent), m_mainWindow(mainWindow)
 {
@@ -83,14 +84,14 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     detailsBoxLayout->addLayout(buttonRow);
 }
 
-void FlightDetailsWidget::updateFlight(Flight &flight)
+void FlightDetailsWidget::updateFlight(shared_ptr<Flight> flight)
 {
-    m_aircraftTypeLabel->setText(QString::fromStdString(AircraftTypes::getName(flight.icaoType)));
-    m_registrationLabel->setText(QString::fromStdString(flight.registration));
-    m_callsignLabel->setText(QString::fromStdString(flight.flightId));
-    m_originLabel->setText(QString::fromStdString(flight.origin));
-    m_destLabel->setText(QString::fromStdString(flight.destination));
-    m_routeEdit->setPlainText(QString::fromStdString(flight.route));
+    m_aircraftTypeLabel->setText(QString::fromStdString(AircraftTypes::getName(flight->icaoType)));
+    m_registrationLabel->setText(QString::fromStdString(flight->registration));
+    m_callsignLabel->setText(QString::fromStdString(flight->flightId));
+    m_originLabel->setText(QString::fromStdString(flight->origin));
+    m_destLabel->setText(QString::fromStdString(flight->destination));
+    m_routeEdit->setPlainText(QString::fromStdString(flight->route));
 
     m_updateRouteButton->hide();
 }
@@ -100,8 +101,8 @@ void FlightDetailsWidget::routeChanged()
     auto route = m_routeEdit->toPlainText();
     printf("FlightDetailsWidget::routeChanged: route: %s\n", route.toStdString().c_str());
 
-    auto& flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
-    if (route.toStdString() != flight.route)
+    auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+    if (route.toStdString() != flight->route)
     {
         m_updateRouteButton->show();
     }

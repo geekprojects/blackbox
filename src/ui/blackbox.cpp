@@ -8,19 +8,21 @@
 #include <QCommandLineParser>
 #include <QSettings>
 #include <QFileDialog>
+#include <QNetworkDiskCache>
+#include <QStandardPaths>
 
 using namespace std;
 
-BlackBoxUI::BlackBoxUI(int argc, char** argv) : m_app(argc, argv)
+BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
 {
-    QApplication::setApplicationName("BlackBox Flight Tracker");
-    QApplication::setApplicationVersion("0.1");
-    QApplication::setOrganizationName("GeekProjects.com");
+    setApplicationName("BlackBox Flight Tracker");
+    setApplicationVersion("0.1");
+    setOrganizationName("GeekProjects.com");
 
     QCommandLineParser parser;
     parser.addHelpOption();
     parser.addVersionOption();
-    parser.process(m_app);
+    parser.process(*this);
 
     QSettings settings("geekprojects", "BlackBox");
     printf("Settings file: %s\n", settings.fileName().toStdString().c_str());
@@ -70,8 +72,9 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : m_app(argc, argv)
 
     printf("Database directory: %s\n", databasePath.c_str());
     auto databaseFile = databasePath / "blackbox.db";
-
     m_dataStore.init(databaseFile.string());
+
+    setupCachedNetworkAccessManager();
 
     m_mainWindow = new MainWindow(this);
     m_mainWindow->init();
@@ -80,36 +83,54 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : m_app(argc, argv)
 int BlackBoxUI::run()
 {
     m_mainWindow->show();
-    return m_app.exec();
+    return exec();
 }
 
 void BlackBoxUI::updateFlights()
 {
-    const auto flights = m_dataStore.fetchFlights();
-    const uint64_t currentFlightId = m_currentFlight.id;
+    auto flights = m_dataStore.fetchFlights();
 
     m_flights.clear();
-    uint64_t lastFlightId = 0;
     for (auto flight : flights)
     {
-        m_flights.emplace(flight.id, flight);
-        if (flight.id > lastFlightId)
+        shared_ptr<Flight> flightPtr = make_shared<Flight>(flight);
+        printf("updateFlights: %lld -> %s\n", flightPtr->id, flightPtr->origin.c_str());
+        m_flights.push_back(flightPtr);
+    }
+
+    uint64_t lastFlightTimestamp = 0;
+    shared_ptr<Flight> lastFlight = nullptr;
+    for (auto flight : m_flights)
+    {
+        m_flightIndex.emplace(flight->id, flight);
+        if (flight->startTime > lastFlightTimestamp)
         {
-            lastFlightId = flight.id;
+            lastFlightTimestamp = flight->startTime;
+            lastFlight = flight;
+        }
+        else if (lastFlight == nullptr)
+        {
+            lastFlight = flight;
         }
     }
 
-    const auto it = m_flights.find(currentFlightId);
-    if (it == m_flights.end())
+    bool foundCurrentFlight = false;
+    if (m_currentFlight != nullptr)
+    {
+        const auto it = m_flightIndex.find(m_currentFlight->id);
+        foundCurrentFlight = it != m_flightIndex.end();
+    }
+
+    if (!foundCurrentFlight)
     {
         if (!m_flights.empty())
         {
-            m_currentFlight = m_flights.at(lastFlightId);
-            printf("Updating current flight: %lld\n", m_currentFlight.id);
+            m_currentFlight = lastFlight;
+            printf("Updating current flight: %lld\n", m_currentFlight->id);
         }
         else
         {
-            m_currentFlight.id = 0;
+            m_currentFlight = nullptr;
         }
         m_mainWindow->updateFlights();
     }
@@ -123,3 +144,20 @@ void BlackBoxUI::setState(const State &state)
         m_mainWindow->updateState();
     }
 }
+
+void BlackBoxUI::setupCachedNetworkAccessManager()
+{
+    QDir("cacheDir");
+    auto cache = new QNetworkDiskCache(this);
+
+    auto cacheLocations = QStandardPaths::standardLocations(QStandardPaths::CacheLocation);
+    auto cacheDir = cacheLocations.first() + "/mapcache";
+    printf("Setting map cache dir: %s\n", cacheDir.toStdString().c_str());
+    cache->setCacheDirectory(cacheDir);
+
+    cache->setMaximumCacheSize(100 * 1024 * 1024);
+    auto manager = new QNetworkAccessManager(this);
+    manager->setCache(cache);
+    QGV::setNetworkManager(manager);
+}
+

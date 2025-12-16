@@ -59,7 +59,7 @@ void RouteMap::setMode(MapMode mode)
     {
         for (auto flight : m_blackBoxUI->getFlights())
         {
-            addRoute(flight.first);
+            addRoute(flight);
         }
     }
 
@@ -76,9 +76,9 @@ void RouteMap::clearRoutes()
     m_routes.clear();
 }
 
-Route* RouteMap::addRoute(uint64_t flightId)
+Route* RouteMap::addRoute(shared_ptr<Flight> flight)
 {
-    Route* route = new Route(this, flightId);
+    Route* route = new Route(this, flight);
     route->updateRoute();
     m_routesLayer->addItem(route);
     m_routes.push_back(route);
@@ -89,7 +89,7 @@ void RouteMap::showFlight(uint64_t flightId)
 {
     for (auto route : m_routes)
     {
-        if (route->getFlight() == flightId)
+        if (route->getFlight()->id == flightId)
         {
             route->showRoute();
             return;
@@ -100,11 +100,10 @@ void RouteMap::showFlight(uint64_t flightId)
     {
         clearRoutes();
 
-        auto flights = m_blackBoxUI->getFlights();
-        auto it = flights.find(flightId);
-        if (it != flights.end())
+        auto flight = m_blackBoxUI->getFlight(flightId);
+        if (flight != nullptr)
         {
-            Route* route = addRoute(flightId);
+            Route* route = addRoute(flight);
             route->showRoute();
         }
     }

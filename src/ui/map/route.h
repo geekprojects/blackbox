@@ -26,7 +26,7 @@ struct Point
 class Route :  public QGVDrawItem
 {
     RouteMap* m_map = nullptr;
-    uint64_t m_flightId;
+    std::shared_ptr<Flight> m_flight;
 
     std::vector<Point> m_points;
     QGV::GeoRect m_boundingRect;
@@ -54,7 +54,7 @@ class Route :  public QGVDrawItem
     void updateScreenshots();
 
 public:
-    Route(RouteMap* map, uint64_t flightId);
+    Route(RouteMap* map, std::shared_ptr<Flight> flightId);
 
     //void set(std::vector<Point> points);
     void addPoints(std::vector<Point> points);
@@ -68,7 +68,7 @@ public:
 
     void showRoute();
 
-    uint64_t getFlight() const { return m_flightId; }
+    std::shared_ptr<Flight> getFlight() const { return m_flight; }
 
     void removeFromMap();
 };

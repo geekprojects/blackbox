@@ -6,11 +6,10 @@
 #include "map/routemap.h"
 #include "../common/utils.h"
 
-#include <QDir>
-#include <QNetworkDiskCache>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QComboBox>
+#include <QFileDialog>
 #include <QToolBar>
 #include <QMenuBar>
 #include <QLabel>
@@ -22,41 +21,24 @@
 #include <QToolButton>
 
 #include "aircrafttypes.h"
+#include "importers/volanta.h"
 #include "widgets/flightdetails.h"
 #include "widgets/liveindicator.h"
 
 using namespace std;
 
-void setupCachedNetworkAccessManager(QObject* parent)
-{
-    QDir("cacheDir");
-    auto cache = new QNetworkDiskCache(parent);
-
-    auto cacheLocations = QStandardPaths::standardLocations(QStandardPaths::CacheLocation);
-    auto cacheDir = cacheLocations.first() + "/mapcache";
-    printf("Setting map cache dir: %s\n", cacheDir.toStdString().c_str());
-    cache->setCacheDirectory(cacheDir);
-
-    cache->setMaximumCacheSize(100 * 1024 * 1024);
-    auto manager = new QNetworkAccessManager(parent);
-    manager->setCache(cache);
-    QGV::setNetworkManager(manager);
-}
-
 MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
 {
     setWindowTitle("BlackBox Flight Tracker");
 
-    setupCachedNetworkAccessManager(this);
-
     auto trayIconMenu = new QMenu(this);
 
-    QAction* showAction;
-    trayIconMenu->addAction(showAction = new QAction("Show"));
+    auto showAction = new QAction("Show");
+    trayIconMenu->addAction(showAction);
     connect(showAction, &QAction::triggered, this, &MainWindow::showNormal);
 
-    QAction* quitAction;
-    trayIconMenu->addAction(quitAction = new QAction("Quit"));
+    auto quitAction = new QAction("Quit");
+    trayIconMenu->addAction(quitAction);
     connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
 
     m_sysTrayIcon = new QSystemTrayIcon(this);
@@ -68,11 +50,12 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
 
     auto menu = menuBar();
     auto fileMenu = menu->addMenu("File");
-    fileMenu->addAction("Delete");
-    fileMenu->addAction("Settings", [this]
-    {
-        m_settingsWindow->show();
-    });
+    auto importMenu = fileMenu->addMenu("Import");
+    importMenu->addAction("Volanta...", [this] { importVolanta(); });
+    fileMenu->addAction("Settings", [this] { m_settingsWindow->show(); });
+
+    menu->addMenu("Window");
+
     auto helpMenu = menu->addMenu("Help");
     helpMenu->addAction("About", [this]
     {
@@ -276,45 +259,44 @@ void MainWindow::updateState()
 
 void MainWindow::updateFlights()
 {
-    m_sysTrayIcon->showMessage("Landing", "Butter!");
-    map<uint64_t, Flight> flights = m_blackBoxUI->getFlights();
+    auto flights = m_blackBoxUI->getFlights();
     m_flightComboBox->clear();
 
     int idx = 0;
     int selectedIndex = 0;
-    uint64_t currentFlightId = m_blackBoxUI->getCurrentFlight().id;
-    for (auto [flightId, flight] : flights)
+    auto currentFlightId = m_blackBoxUI->getCurrentFlight();
+    for (auto flight : flights)
     {
         string title;
 
         bool comma = false;
-        if (!flight.icaoType.empty())
+        if (!flight->icaoType.empty())
         {
-            title += flight.icaoType;
+            title += flight->icaoType;
             comma = true;
         }
-        if (!flight.flightId.empty() && flight.icaoType != flight.flightId)
+        if (!flight->flightId.empty() && flight->icaoType != flight->flightId)
         {
             if (comma)
             {
                 title += ": ";
             }
-            title += flight.flightId;
+            title += flight->flightId;
             comma = true;
         }
 
         bool hasOrigin = false;
-        if (!flight.origin.empty())
+        if (!flight->origin.empty())
         {
             if (comma)
             {
                 title += ": ";
             }
-            title += flight.origin;
+            title += flight->origin;
             comma = true;
             hasOrigin = true;
         }
-        if (!flight.destination.empty())
+        if (!flight->destination.empty())
         {
             if (hasOrigin)
             {
@@ -324,13 +306,13 @@ void MainWindow::updateFlights()
             {
                 title += ": ";
             }
-            title += flight.destination;
+            title += flight->destination;
         }
-        m_flightComboBox->addItem(QString(title.c_str()), QVariant::fromValue(flight.id));
+        m_flightComboBox->addItem(QString(title.c_str()), QVariant::fromValue(flight->id));
 
-        if (flight.id == currentFlightId)
+        if (flight == currentFlightId)
         {
-            printf("updateFlights: Found current Flight: %lld -> %d\n", flight.id, idx);
+            printf("updateFlights: Found current Flight: %lld -> %d\n", flight->id, idx);
             selectedIndex = idx;
         }
 
@@ -351,7 +333,7 @@ void MainWindow::deleteCurrentFlight()
     {
         // Well, we'd better delete it, then
         m_map->clearRoutes();
-        m_blackBoxUI->getDataStore().deleteFlight(m_blackBoxUI->getCurrentFlight().id);
+        m_blackBoxUI->getDataStore().deleteFlight(m_blackBoxUI->getCurrentFlight()->id);
         m_blackBoxUI->updateFlights();
     }
 }
@@ -362,4 +344,16 @@ void MainWindow::selectFlight(uint64_t flightId)
     m_map->showFlight(flightId);
 
     m_detailsBox->updateFlight(m_blackBoxUI->getCurrentFlight());
+}
+
+void MainWindow::importVolanta()
+{
+    auto dialog = QFileDialog::getExistingDirectory(nullptr, "Select Volanta export directory");
+    if (!dialog.isEmpty())
+    {
+        DataStore& datastore = m_blackBoxUI->getDataStore();
+        VolantaImporter importer(&datastore);
+        importer.import(dialog.toStdString());
+        m_blackBoxUI->updateFlights();
+    }
 }

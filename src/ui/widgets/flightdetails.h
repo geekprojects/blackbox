@@ -31,7 +31,7 @@ class FlightDetailsWidget : public QWidget
  public:
     explicit FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent = nullptr);
 
-    void updateFlight(Flight& flight);
+    void updateFlight(std::shared_ptr<Flight> flight);
 };
 
 
