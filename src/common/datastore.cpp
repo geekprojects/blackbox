@@ -10,17 +10,8 @@
 using namespace std;
 using namespace BlackBox;
 
-string getString(sqlite3_stmt* stmt, int col)
-{
-    const unsigned char* str = sqlite3_column_text(stmt, col);
-    if (str == nullptr)
-    {
-        return "";
-    }
-    return {reinterpret_cast<const char*>(str)};
-}
 
-DataStore::DataStore() : Logger("DataStore")
+DataStore::DataStore() : Database("DataStore")
 {
 }
 
@@ -39,18 +30,13 @@ DataStore::~DataStore()
         sqlite3_finalize(m_insertScreenshotStatement);
     }
 
-    if (m_db != nullptr)
-    {
-        sqlite3_close(m_db);
-    }
+    Database::close();
 }
 
 bool DataStore::init(string dbPath)
 {
-    int res = sqlite3_open(dbPath.c_str(), &m_db);
-    if (res != SQLITE_OK)
+    if (!open(dbPath))
     {
-        log(ERROR, "Failed to open database");
         return false;
     }
 
@@ -60,7 +46,7 @@ bool DataStore::init(string dbPath)
     // Make sure Write Ahead Logging is enabled
     sql = "PRAGMA journal_mode=WAL";
     sqlite3_stmt *stmt;
-    res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
+    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &stmt, nullptr);
     if (res != SQLITE_OK)
     {
         log(ERROR, "init: Failed to prepare WAL statement: %d", res);
@@ -85,7 +71,7 @@ bool DataStore::init(string dbPath)
         "    start_time INTEGER,"
         "    route TEXT"
         ")";
-    res = sqlite3_exec(m_db, sql.c_str(), nullptr, nullptr, &err);
+    res = sqlite3_exec(getDB(), sql.c_str(), nullptr, nullptr, &err);
     if (res != SQLITE_OK)
     {
         log(ERROR, "init: Failed to create flights table: %s", err);
@@ -113,7 +99,7 @@ bool DataStore::init(string dbPath)
         "    ground_speed REAL,"
         "    indicated_air_speed REAL"
         ")";
-    res = sqlite3_exec(m_db, sql.c_str(), nullptr, nullptr, &err);
+    res = sqlite3_exec(getDB(), sql.c_str(), nullptr, nullptr, &err);
     if (res != SQLITE_OK)
     {
         log(ERROR, "init: Failed to create flight_state table: %s", err);
@@ -121,7 +107,7 @@ bool DataStore::init(string dbPath)
     }
 
     sql = "CREATE INDEX IF NOT EXISTS flight_state_by_id ON flight_state (flight_id)";
-    res = sqlite3_exec(m_db, sql.c_str(), nullptr, nullptr, &err);
+    res = sqlite3_exec(getDB(), sql.c_str(), nullptr, nullptr, &err);
     if (res != SQLITE_OK)
     {
         log(ERROR, "init: Failed to create flight_state index: %s", err);
@@ -134,10 +120,10 @@ bool DataStore::init(string dbPath)
         "    (id, flight_id, phase, event, timestamp, sim_time, latitude, longitude, altitude, agl, fpm, fpm_average, g_force, pitch, yaw, roll, ground_speed, indicated_air_speed)"
         "  VALUES"
         "    (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &m_writeStatusStatement, nullptr);
+    res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &m_writeStatusStatement, nullptr);
     if (res != SQLITE_OK)
     {
-        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
@@ -149,7 +135,7 @@ bool DataStore::init(string dbPath)
         "    timestamp INTEGER,"
         "    path TEXT"
     ")";
-    res = sqlite3_exec(m_db, sql.c_str(), nullptr, nullptr, &err);
+    res = sqlite3_exec(getDB(), sql.c_str(), nullptr, nullptr, &err);
     if (res != SQLITE_OK)
     {
         log(ERROR, "init: Failed to create screenshots table: %s", err);
@@ -177,10 +163,10 @@ bool DataStore::init(string dbPath)
         "  FROM flight_state"
         "  WHERE flight_id=? AND timestamp > ?"
         "  ORDER BY timestamp ASC";
-    res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &m_fetchStatusStatement, nullptr);
+    res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &m_fetchStatusStatement, nullptr);
     if (res != SQLITE_OK)
     {
-        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
@@ -194,10 +180,10 @@ bool DataStore::init(string dbPath)
         "  ) VALUES ("
         "    NULL, ?, ?, ? ,?"
         ")";
-    res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &m_insertScreenshotStatement, nullptr);
+    res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &m_insertScreenshotStatement, nullptr);
     if (res != SQLITE_OK)
     {
-        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
@@ -217,10 +203,10 @@ bool DataStore::init(string dbPath)
         "    ss.flight_id = ? AND"
         "    ss.timestamp > ?"
         "  ORDER BY ss.timestamp ASC";
-    res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &m_fetchScreenshotStatement, nullptr);
+    res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &m_fetchScreenshotStatement, nullptr);
     if (res != SQLITE_OK)
     {
-        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
@@ -235,10 +221,10 @@ uint64_t DataStore::createFlight(Flight& flight)
         "  VALUES"
         "    (NULL, ?, ?, ?, ?, ?, ?, ?)";
     sqlite3_stmt *stmt;
-    int res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
+    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &stmt, nullptr);
     if (res != SQLITE_OK)
     {
-        log(ERROR, "createFlight: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "createFlight: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return 0;
     }
     sqlite3_bind_text(stmt, 1, flight.origin.c_str(), -1, SQLITE_STATIC);
@@ -253,11 +239,11 @@ uint64_t DataStore::createFlight(Flight& flight)
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE)
     {
-        log(ERROR, "createFlight: Failed to insert flight: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "createFlight: Failed to insert flight: %d: %s", res, sqlite3_errmsg(getDB()));
         return 0;
     }
 
-    flight.id = sqlite3_last_insert_rowid(m_db);
+    flight.id = sqlite3_last_insert_rowid(getDB());
     sqlite3_finalize(stmt);
 
     return flight.id;
@@ -267,10 +253,10 @@ void DataStore::updateFlight(const Flight& flight)
 {
     string sql = "UPDATE flights SET origin=?, destination=?, aircraft_type=?, aircraft_registration=?, flight_code=? WHERE id=?";
     sqlite3_stmt *stmt;
-    int res = sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
+    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &stmt, nullptr);
     if (res != SQLITE_OK)
     {
-        log(ERROR, "updateFlight: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "updateFlight: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return;
     }
 
@@ -284,7 +270,7 @@ void DataStore::updateFlight(const Flight& flight)
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE)
     {
-        log(ERROR, "updateFlight: Failed to update flight: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "updateFlight: Failed to update flight: %d: %s", res, sqlite3_errmsg(getDB()));
     }
     sqlite3_finalize(stmt);
 }
@@ -306,10 +292,10 @@ std::vector<Flight> DataStore::fetchFlights()
         "  ORDER BY start_time ASC";
     vector<Flight> flights;
     sqlite3_stmt* stmt;
-    int res = sqlite3_prepare_v2(m_db, sql.c_str(), sql.length(), &stmt, nullptr);
+    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &stmt, nullptr);
     if (res != SQLITE_OK)
     {
-        log(ERROR, "fetchFlights: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "fetchFlights: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return flights;
     }
     while (true)
@@ -366,10 +352,10 @@ uint64_t DataStore::writeState(uint64_t flightId, const State &state)
     int res = sqlite3_step(m_writeStatusStatement);
     if (res != SQLITE_DONE)
     {
-        log(ERROR, "write: Failed to insert state: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "write: Failed to insert state: %d: %s", res, sqlite3_errmsg(getDB()));
         return 0;
     }
-    auto rowid = sqlite3_last_insert_rowid(m_db);
+    auto rowid = sqlite3_last_insert_rowid(getDB());
     sqlite3_reset(m_writeStatusStatement);
 
     return rowid;
@@ -433,11 +419,11 @@ void DataStore::writeScreenshot(Screenshot& screenshot)
     auto res = sqlite3_step(m_insertScreenshotStatement);
     if (res != SQLITE_DONE)
     {
-        log(ERROR, "createFlight: Failed to insert flight: %d: %s", res, sqlite3_errmsg(m_db));
+        log(ERROR, "createFlight: Failed to insert flight: %d: %s", res, sqlite3_errmsg(getDB()));
         return;
     }
 
-    screenshot.id = sqlite3_last_insert_rowid(m_db);
+    screenshot.id = sqlite3_last_insert_rowid(getDB());
     sqlite3_reset(m_insertScreenshotStatement);
 }
 
@@ -476,36 +462,19 @@ vector<Screenshot> DataStore::fetchScreenshots(uint64_t flightId, uint64_t since
     return screenshots;
 }
 
-void DataStore::startTransaction()
-{
-    int res = sqlite3_exec(m_db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
-    if (res != SQLITE_OK)
-    {
-        log(ERROR, "startTransaction: Failed to start transaction: %d: %s", res, sqlite3_errmsg(m_db));
-    }
-}
-
-void DataStore::commitTransaction()
-{
-    int res = sqlite3_exec(m_db, "COMMIT", nullptr, nullptr, nullptr);
-    if (res != SQLITE_OK)
-    {
-        log(ERROR, "commitTransaction: Failed to commit transaction: %d: %s", res, sqlite3_errmsg(m_db));
-    }
-}
 
 void DataStore::deleteFlight(uint64_t flightId)
 {
     log(DEBUG, "deleteFlight: Deleting flightId: %d", flightId);
     string sql = "DELETE FROM flight_state WHERE flight_id=?";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(m_db, sql.c_str(), sql.length(), &stmt, nullptr);
+    sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &stmt, nullptr);
     sqlite3_bind_int64(stmt, 1, flightId);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     sql = "DELETE FROM flights WHERE id=?";
-    sqlite3_prepare_v2(m_db, sql.c_str(), sql.length(), &stmt, nullptr);
+    sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &stmt, nullptr);
     sqlite3_bind_int64(stmt, 1, flightId);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);

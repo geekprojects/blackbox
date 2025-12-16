@@ -5,10 +5,8 @@
 #ifndef BLACKBOX_DATASTORE_H
 #define BLACKBOX_DATASTORE_H
 
-#include <sqlite3.h>
-
+#include "database.h"
 #include "state.h"
-#include "logger.h"
 #include "screenshot.h"
 
 struct Flight
@@ -23,9 +21,8 @@ struct Flight
     std::string route;
 };
 
-class DataStore : BlackBox::Logger
+class DataStore : public Database
 {
-    sqlite3* m_db = nullptr;
     sqlite3_stmt* m_writeStatusStatement = nullptr;
     sqlite3_stmt* m_fetchStatusStatement = nullptr;
     sqlite3_stmt* m_insertScreenshotStatement = nullptr;
@@ -35,7 +32,7 @@ class DataStore : BlackBox::Logger
 
 public:
     DataStore();
-    ~DataStore();
+    ~DataStore() override;
 
     bool init(std::string dbPath);
 
@@ -49,9 +46,6 @@ public:
 
     void writeScreenshot(Screenshot &screenshot);
     std::vector<Screenshot> fetchScreenshots(uint64_t flightId, uint64_t sinceTimestamp);
-
-    void startTransaction();
-    void commitTransaction();
 
     void deleteFlight(uint64_t flightId);
 };

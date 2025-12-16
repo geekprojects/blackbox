@@ -35,17 +35,6 @@ double Utils::distance(Coordinate c1, Coordinate c2)
     return earthRadiusKm * c;
 }
 
-#ifdef PLUGIN
-std::string Utils::getString(const XPLMDataRef ref)
-{
-    int bytes = XPLMGetDatab(ref, nullptr, 0, 0);
-    char buffer[bytes + 1];
-    XPLMGetDatab(ref, buffer, 0, bytes);
-    buffer[bytes] = '\0';
-    return string(buffer);
-}
-#endif
-
 double Utils::angleFromCoordinate(Coordinate coord1, Coordinate coord2)
 {
     double phi1 = degreesToRadians(coord1.latitude);

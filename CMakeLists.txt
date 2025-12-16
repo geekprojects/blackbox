@@ -26,13 +26,17 @@ add_definitions(
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-qt_add_executable(BlackBox
-        WIN32
-        MACOSX_BUNDLE
+add_library(common STATIC
+        src/common/database.cpp
         src/common/datastore.cpp
         src/common/logger.cpp
         src/common/utils.cpp
         src/common/utils.h
+)
+
+qt_add_executable(BlackBox
+        WIN32
+        MACOSX_BUNDLE
         src/ui/aircrafttypes.cpp
         src/ui/aircrafttypes.h
         src/ui/blackbox.cpp
@@ -58,6 +62,8 @@ qt_add_executable(BlackBox
         src/ui/settingswindow.h
         src/ui/importers/volanta.cpp
         src/ui/importers/volanta.h
+        src/ui/map/route.cpp
+        src/ui/map/route.h
 )
 
 qt_add_resources(BlackBox "images"
@@ -79,6 +85,7 @@ qt_add_resources(BlackBox "images"
 )
 
 target_link_libraries(BlackBox PRIVATE
+        common
         ${GEOVIEW_LIBRARY}
         Qt6::Core
         Qt6::Widgets
@@ -116,19 +123,18 @@ add_library(bbplugin SHARED
         src/plugin/statuswindow.h
         src/plugin/Writer.cpp
         src/plugin/Writer.h
-        src/common/logger.cpp
-        src/common/datastore.cpp
         include/blackbox/state.h
-        src/common/utils.cpp
-        src/common/utils.h
         src/plugin/screenshots.cpp
         src/plugin/screenshots.h
         include/blackbox/screenshot.h
+        include/blackbox/database.h
+        src/common/database.cpp
 )
 
 target_compile_definitions(bbplugin PUBLIC -DPLUGIN=1 ${XPLM_CFLAGS})
 target_include_directories(bbplugin PUBLIC ${XPLANE_INC})
 target_link_libraries(bbplugin
+        common
         ${XPLM_LDFLAGS}
         ${SQLITE3_LIBRARY}
         ${libfswatch_LDFLAGS}

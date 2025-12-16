@@ -151,6 +151,7 @@ class BlackBoxPlugin : public BlackBox::Logger
     }
     void menuCallback(void* in_item_ref);
 
+    static std::string getString(XPLMDataRef ref);
  public:
     BlackBoxPlugin();
     ~BlackBoxPlugin() override = default;

@@ -7,6 +7,7 @@
 
 #include <QApplication>
 
+#include "navigraph.h"
 #include "blackbox/datastore.h"
 
 class MainWindow;
@@ -16,6 +17,7 @@ class BlackBoxUI : public QApplication
     MainWindow* m_mainWindow = nullptr;
 
     DataStore m_dataStore;
+    std::shared_ptr<NavigraphData> m_navigraph;
 
     State m_latestState;
 
@@ -57,6 +59,7 @@ class BlackBoxUI : public QApplication
     const State& getState() const { return m_latestState; }
 
     DataStore& getDataStore() { return m_dataStore; }
+    std::shared_ptr<NavigraphData> getNavigraph() { return m_navigraph; }
 };
 
 #endif //BLACKBOX_BLACKBOX_H

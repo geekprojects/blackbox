@@ -89,8 +89,28 @@ void FlightDetailsWidget::updateFlight(shared_ptr<Flight> flight)
     m_aircraftTypeLabel->setText(QString::fromStdString(AircraftTypes::getName(flight->icaoType)));
     m_registrationLabel->setText(QString::fromStdString(flight->registration));
     m_callsignLabel->setText(QString::fromStdString(flight->flightId));
-    m_originLabel->setText(QString::fromStdString(flight->origin));
-    m_destLabel->setText(QString::fromStdString(flight->destination));
+
+    string origin = m_mainWindow->getBlackBoxUI()->getNavigraph()->findAirport(flight->origin);
+    if (!origin.empty())
+    {
+        origin += " (" + flight->origin + ")";
+    }
+    else
+    {
+        origin = flight->origin;
+    }
+    string dest = m_mainWindow->getBlackBoxUI()->getNavigraph()->findAirport(flight->destination);
+    if (!dest.empty())
+    {
+        dest += " (" + flight->destination + ")";
+    }
+    else
+    {
+        dest = flight->destination;
+    }
+
+    m_originLabel->setText(QString::fromStdString(origin));
+    m_destLabel->setText(QString::fromStdString(dest));
     m_routeEdit->setPlainText(QString::fromStdString(flight->route));
 
     m_updateRouteButton->hide();

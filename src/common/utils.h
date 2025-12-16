@@ -20,7 +20,6 @@ class Utils
     static double angleFromCoordinate(UFC::Coordinate coord1, UFC::Coordinate coord2);
 
 #ifdef PLUGIN
-    static std::string getString(XPLMDataRef ref);
 #endif
 };
 

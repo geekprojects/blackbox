@@ -248,18 +248,18 @@ void BlackBoxPlugin::createFlight()
     string id = findNearestAirport(latitude, longitude);
 
     m_currentFlight.origin = id;
-    m_currentFlight.icaoType = Utils::getString(m_aircraftICAODataRef);
-    m_currentFlight.registration = Utils::getString(m_aircraftTailNumberDataRef);
-    m_currentFlight.flightId = Utils::getString(m_flightIDDataRef);
+    m_currentFlight.icaoType = getString(m_aircraftICAODataRef);
+    m_currentFlight.registration = getString(m_aircraftTailNumberDataRef);
+    m_currentFlight.flightId = getString(m_flightIDDataRef);
     m_currentFlight.startTime = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
     m_datastore.createFlight(m_currentFlight);
 }
 
 void BlackBoxPlugin::updateFlight()
 {
-    string icaoType = Utils::getString(m_aircraftICAODataRef);
-    string registration = Utils::getString(m_aircraftTailNumberDataRef);
-    string flightId = Utils::getString(m_flightIDDataRef);
+    string icaoType = getString(m_aircraftICAODataRef);
+    string registration = getString(m_aircraftTailNumberDataRef);
+    string flightId = getString(m_flightIDDataRef);
 
     bool update = false;
     if (m_currentFlight.icaoType != icaoType)
@@ -595,6 +595,15 @@ void BlackBoxPlugin::menuCallback(void* in_item_ref)
             break;
         }
     }
+}
+
+string BlackBoxPlugin::getString(const XPLMDataRef ref)
+{
+    int bytes = XPLMGetDatab(ref, nullptr, 0, 0);
+    char buffer[bytes + 1];
+    XPLMGetDatab(ref, buffer, 0, bytes);
+    buffer[bytes] = '\0';
+    return string(buffer);
 }
 
 PLUGIN_API int XPluginStart(char* outName, char* outSig, char* outDesc)

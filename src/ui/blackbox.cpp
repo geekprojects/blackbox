@@ -74,6 +74,13 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
     auto databaseFile = databasePath / "blackbox.db";
     m_dataStore.init(databaseFile.string());
 
+    string homeDir = getenv("HOME");
+    m_navigraph = make_shared<NavigraphData>(homeDir + "/.config/ABarthel/little_navmap_db/little_navmap_navigraph.sqliteXXX");
+    m_navigraph->open();
+
+    Waypoint wp;
+    m_navigraph->findWaypoint("CPT", wp);
+
     setupCachedNetworkAccessManager();
 
     m_mainWindow = new MainWindow(this);
