@@ -24,7 +24,7 @@ add_definitions(
         ${nlohmann_json_CFLAGS}
 )
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
 
 add_library(common STATIC
         src/common/database.cpp
@@ -64,6 +64,10 @@ qt_add_executable(BlackBox
         src/ui/importers/volanta.h
         src/ui/map/route.cpp
         src/ui/map/route.h
+        src/ui/map/polyline.cpp
+        src/ui/map/polyline.h
+        src/ui/map/routemarker.cpp
+        src/ui/map/routemarker.h
 )
 
 qt_add_resources(BlackBox "images"

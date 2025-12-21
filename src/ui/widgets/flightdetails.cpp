@@ -90,27 +90,32 @@ void FlightDetailsWidget::updateFlight(shared_ptr<Flight> flight)
     m_registrationLabel->setText(QString::fromStdString(flight->registration));
     m_callsignLabel->setText(QString::fromStdString(flight->flightId));
 
-    string origin = m_mainWindow->getBlackBoxUI()->getNavigraph()->findAirport(flight->origin);
-    if (!origin.empty())
+    Airport origin;
+    string originStr;
+    bool found = m_mainWindow->getBlackBoxUI()->getNavigraph()->findAirport(flight->origin, origin);
+    if (found)
     {
-        origin += " (" + flight->origin + ")";
+        originStr = origin.name +  " (" + flight->origin + ")";
     }
     else
     {
-        origin = flight->origin;
-    }
-    string dest = m_mainWindow->getBlackBoxUI()->getNavigraph()->findAirport(flight->destination);
-    if (!dest.empty())
-    {
-        dest += " (" + flight->destination + ")";
-    }
-    else
-    {
-        dest = flight->destination;
+        originStr = flight->origin;
     }
 
-    m_originLabel->setText(QString::fromStdString(origin));
-    m_destLabel->setText(QString::fromStdString(dest));
+    Airport dest;
+    string destStr;
+    found = m_mainWindow->getBlackBoxUI()->getNavigraph()->findAirport(flight->destination, dest);
+    if (found)
+    {
+        destStr = dest.name + " (" + flight->destination + ")";
+    }
+    else
+    {
+        destStr = flight->destination;
+    }
+
+    m_originLabel->setText(QString::fromStdString(originStr));
+    m_destLabel->setText(QString::fromStdString(destStr));
     m_routeEdit->setPlainText(QString::fromStdString(flight->route));
 
     m_updateRouteButton->hide();

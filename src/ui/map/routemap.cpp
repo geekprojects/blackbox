@@ -9,6 +9,7 @@
 #include <QGeoView/QGVWidgetText.h>
 
 #include "../blackbox.h"
+#include "route.h"
 
 using namespace std;
 
@@ -66,6 +67,14 @@ void FlightMap::setMode(MapMode mode)
 
 void FlightMap::clearRoutes()
 {
+    for (auto track : m_tracks)
+    {
+        track->removeFromMap();
+        m_routesLayer->removeItem(track);
+        delete track;
+    }
+    m_tracks.clear();
+
     for (auto route : m_routes)
     {
         route->removeFromMap();
@@ -80,13 +89,13 @@ Track* FlightMap::addRoute(shared_ptr<Flight> flight)
     Track* route = new Track(this, flight);
     route->updateRoute();
     m_routesLayer->addItem(route);
-    m_routes.push_back(route);
+    m_tracks.push_back(route);
     return route;
 }
 
 void FlightMap::showFlight(uint64_t flightId)
 {
-    for (auto route : m_routes)
+    for (auto route : m_tracks)
     {
         if (route->getFlight()->id == flightId)
         {
@@ -102,8 +111,15 @@ void FlightMap::showFlight(uint64_t flightId)
         auto flight = m_blackBoxUI->getFlight(flightId);
         if (flight != nullptr)
         {
-            Track* route = addRoute(flight);
-            route->showRoute();
+            Route* route = new Route(m_blackBoxUI->getNavigraph(), this, flight);
+            if (route->parseRoute())
+            {
+                m_routesLayer->addItem(route);
+                m_routes.push_back(route);
+            }
+
+            Track* track = addRoute(flight);
+            track->showRoute();
         }
     }
 }

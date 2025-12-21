@@ -31,6 +31,7 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
 {
     setWindowTitle("BlackBox Flight Tracker");
 
+#if 0
     auto trayIconMenu = new QMenu(this);
 
     auto showAction = new QAction("Show");
@@ -45,6 +46,7 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
     m_sysTrayIcon->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::DocumentSend));
     m_sysTrayIcon->setContextMenu(trayIconMenu);
     m_sysTrayIcon->show();
+#endif
 
     m_settingsWindow = new SettingsWindow();
 
@@ -115,6 +117,7 @@ MainWindow::~MainWindow() = default;
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
+#if 0
     if (!event->spontaneous() || !isVisible())
     {
         return;
@@ -125,6 +128,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
         hide();
         event->ignore();
     }
+#endif
 }
 
 void MainWindow::buildFlightSelectionWidget()

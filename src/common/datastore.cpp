@@ -49,7 +49,7 @@ bool DataStore::init(string dbPath)
     int res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &stmt, nullptr);
     if (res != SQLITE_OK)
     {
-        log(ERROR, "init: Failed to prepare WAL statement: %d", res);
+        log(ERROR, "init: Failed to prepare WAL statement: %d: %s", sqlite3_errmsg(getDB()));
         return false;
     }
     res = sqlite3_step(stmt);

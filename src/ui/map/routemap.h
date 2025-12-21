@@ -15,6 +15,7 @@
 class QGVLayerTilesOnline;
 class QGVLayerTiles;
 class BlackBoxUI;
+class Route;
 class Track;
 
 enum class MapMode
@@ -30,6 +31,7 @@ enum class LineType
     G_FORCE
 };
 
+
 class FlightMap : public QGVMap
 {
     Q_OBJECT;
@@ -43,7 +45,8 @@ class FlightMap : public QGVMap
     QGVLayer* m_itemsLayer = nullptr;
     QGVLayer* m_routesLayer = nullptr;
 
-    std::vector<Track*> m_routes;
+    std::vector<Route*> m_routes;
+    std::vector<Track*> m_tracks;
 
     QImage* m_screenshotIcon;
 

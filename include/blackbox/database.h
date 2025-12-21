@@ -22,7 +22,7 @@ class Database : public BlackBox::Logger
  public:
     ~Database() override;
 
-    bool open(std::string path);
+    bool open(std::string path, bool readOnly = false);
     virtual void close();
 
     bool isOpen() const { return m_db != nullptr; }

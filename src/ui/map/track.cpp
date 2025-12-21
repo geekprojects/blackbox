@@ -24,7 +24,7 @@ QColor interpolate(QColor start,QColor end,double ratio)
         static_cast<int>(ratio * start.blue() + (1 - ratio) * end.blue()));
 }
 
-Track::Track(FlightMap* map, shared_ptr<Flight> flight) : m_map(map), m_flight(flight)
+Track::Track(FlightMap* map, shared_ptr<Flight> flight) : PolyLine(map, flight)
 {
     setFlag(QGV::ItemFlag::Clickable);
 
@@ -41,7 +41,7 @@ Track::Track(FlightMap* map, shared_ptr<Flight> flight) : m_map(map), m_flight(f
     m_updateTimer->start(1000);
 }
 
-void Track::addPoints(std::vector<Point> points)
+void Track::addPoints(std::vector<TrackPoint> points)
 {
     m_points.insert(m_points.end(), points.begin(), points.end());
     printf("addPoints: Added %ld points, we now have %ld\n", points.size(), m_points.size());
@@ -49,39 +49,15 @@ void Track::addPoints(std::vector<Point> points)
     m_maxAltitude = 0.001f;
     if (!m_points.empty())
     {
-        m_boundingRect = QGV::GeoRect(m_points[0].position, m_points[0].position);
-
-        double minLat = m_points[0].position.latitude();
-        double maxLat = m_points[0].position.latitude();
-        double minLon = m_points[0].position.longitude();
-        double maxLon = m_points[0].position.longitude();
+        updateBoundingRect();
 
         for (const auto& point : m_points)
         {
-            if (point.position.latitude() < minLat)
-            {
-                minLat = point.position.latitude();
-            }
-            if (point.position.latitude() > maxLat)
-            {
-                maxLat = point.position.latitude();
-            }
-            if (point.position.longitude() < minLon)
-            {
-                minLon = point.position.longitude();
-            }
-            if (point.position.longitude() > maxLon)
-            {
-                maxLon = point.position.longitude();
-            }
             if (point.altitude > m_maxAltitude)
             {
                 m_maxAltitude = point.altitude;
             }
         }
-        m_boundingRect = QGV::GeoRect(
-            QGV::GeoPos(minLat, minLon),
-            QGV::GeoPos(maxLat, maxLon));
     }
     printf("Max Altitude: %0.2f\n", m_maxAltitude);
 
@@ -103,12 +79,7 @@ void Track::clear()
     refresh();
 }
 
-QGV::GeoRect Track::getRect() const
-{
-    return m_boundingRect;
-}
-
-Point Track::getLastPosition()
+TrackPoint Track::getLastPosition() const
 {
     if (!m_points.empty())
     {
@@ -116,39 +87,6 @@ Point Track::getLastPosition()
     }
     return {};
 }
-
-void Track::onProjection(QGVMap* geoMap)
-{
-    QGVDrawItem::onProjection(geoMap);
-    for (auto& point : m_points)
-    {
-        point.projected = geoMap->getProjection()->geoToProj(point.position);
-    }
-
-    m_boundingRectProjected = QRectF(
-        geoMap->getProjection()->geoToProj(m_boundingRect.topLeft()),
-        geoMap->getProjection()->geoToProj(m_boundingRect.bottomRight()));
-}
-
-QPainterPath Track::projShape() const
-{
-    QPainterPath path;
-
-    if (!m_points.empty())
-    {
-        path.moveTo(m_points.front().projected);
-        for (auto it = m_points.begin(); it != m_points.end(); ++it)
-        {
-            if (it != m_points.begin())
-            {
-                path.lineTo(it->projected);
-            }
-        }
-    }
-
-    return path;
-}
-
 
 void Track::projPaint(QPainter* painter)
 {
@@ -177,14 +115,16 @@ void Track::projPaint(QPainter* painter)
         colour2 =  QColor(82, 78, 221);
     }
 
-    Point previous;
+    TrackPoint previous;
     for (auto it = m_points.begin(); it != m_points.end(); ++it)
     {
         if (it != m_points.begin())
         {
             QPointF const& p1 = previous.projected;
             QPointF const& p2 = it->projected;
-            if (rect.contains(p1) || rect.contains(p2))
+
+            QRectF const pr(p1, p2);
+            if (rect.intersects(pr))
             {
                 float altitude = (it->altitude + previous.altitude) / 2.0f;
                 pen.setColor(interpolate(colour2, colour1, altitude / m_maxAltitude));
@@ -194,11 +134,6 @@ void Track::projPaint(QPainter* painter)
         }
         previous = *it;
     }
-}
-
-QPointF Track::projAnchor() const
-{
-    return m_boundingRectProjected.center();
 }
 
 void nearestpointonline2D(const QGV::GeoPos& a, const  QGV::GeoPos& b, const QGV::GeoPos& point, double& lineQx, double& lineQy)
@@ -232,7 +167,7 @@ QString Track::projTooltip(const QPointF& projPos) const
     auto geo = getMap()->getProjection()->projToGeo(projPos);
 
     QGV::GeoPos previous;
-    Point closest;
+    TrackPoint closest;
     double closestDiff = DBL_MAX;
     bool found = false;
     for (auto& point : m_points)
@@ -271,10 +206,10 @@ void Track::updateRoute()
         return;
     }
 
-    vector<Point> points;
+    vector<TrackPoint> points;
     for (const State& state : stateUpdates)
     {
-        Point p;
+        TrackPoint p;
         p.position = QGV::GeoPos(state.position.latitude, state.position.longitude);
 
         switch (m_map->getLineType())
@@ -331,7 +266,7 @@ void Track::updateRoute()
 
         if (m_map->getMode() == MapMode::ROUTE)
         {
-            Point point = getLastPosition();
+            TrackPoint point = getLastPosition();
 
             QTransform transform;
             transform.rotate(point.heading);
@@ -433,11 +368,6 @@ void Track::showRoute()
 void Track::removeFromMap()
 {
     m_updateTimer->stop();
-    for (auto item : m_items)
-    {
-        m_map->getItemsLayer()->removeItem(item);
-        delete item;
-    }
-    m_items.clear();
+    PolyLine::removeFromMap();
     m_screenshots.clear();
 }

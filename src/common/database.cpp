@@ -16,15 +16,26 @@ Database::~Database()
     Database::close();
 }
 
-bool Database::open(std::string path)
+bool Database::open(string path, bool readOnly)
 {
-    int res = sqlite3_open_v2(path.c_str(), &m_db, SQLITE_OPEN_READONLY, nullptr);
+    int flags = 0;
+    if (readOnly)
+    {
+        flags |= SQLITE_OPEN_READONLY;
+    }
+    else
+    {
+        flags |= SQLITE_OPEN_READWRITE;
+    }
+    int res = sqlite3_open_v2(path.c_str(), &m_db, flags, nullptr);
+
     if (res != SQLITE_OK)
     {
         log(ERROR, "Failed to open database: %d: %s", res, sqlite3_errmsg(m_db));
         m_db = nullptr;
         return false;
     }
+
     return true;
 }
 

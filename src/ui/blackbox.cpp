@@ -4,12 +4,15 @@
 
 #include "blackbox.h"
 #include "mainwindow.h"
+#include "map/route.h"
 
 #include <QCommandLineParser>
 #include <QSettings>
 #include <QFileDialog>
 #include <QNetworkDiskCache>
 #include <QStandardPaths>
+
+#include "map/route.h"
 
 using namespace std;
 
@@ -75,11 +78,8 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
     m_dataStore.init(databaseFile.string());
 
     string homeDir = getenv("HOME");
-    m_navigraph = make_shared<NavigraphData>(homeDir + "/.config/ABarthel/little_navmap_db/little_navmap_navigraph.sqliteXXX");
+    m_navigraph = make_shared<NavigraphData>(homeDir + "/.config/ABarthel/little_navmap_db/little_navmap_navigraph.sqlite");
     m_navigraph->open();
-
-    Waypoint wp;
-    m_navigraph->findWaypoint("CPT", wp);
 
     setupCachedNetworkAccessManager();
 
@@ -89,6 +89,16 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
 
 int BlackBoxUI::run()
 {
+    /*
+    auto flight = make_shared<Flight>();
+    flight->origin = "SBGL";
+    flight->destination = "SAEZ";
+    flight->route = "SBGL/10 TIVR1A BITAK UN857 NELOX UM534 DADUT UN741 PAPIX DCT SAEZ/29";
+
+    Route route(m_navigraph, flight);
+
+    route.parseRoute();
+*/
     m_mainWindow->show();
     return exec();
 }
@@ -101,7 +111,6 @@ void BlackBoxUI::updateFlights()
     for (auto flight : flights)
     {
         shared_ptr<Flight> flightPtr = make_shared<Flight>(flight);
-        printf("updateFlights: %lld -> %s\n", flightPtr->id, flightPtr->origin.c_str());
         m_flights.push_back(flightPtr);
     }
 
