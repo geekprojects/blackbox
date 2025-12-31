@@ -14,25 +14,29 @@
 
 class RouteMarker;
 
-
 struct RoutePoint : Point
 {
     std::string name;
     std::string airway;
 
+    NavAidType type;
+
     RouteMarker* marker = nullptr;
+
+    uint64_t sourceId = 0;
 };
 
 class Route : public PolyLine<RoutePoint>
 {
     std::shared_ptr<NavigraphData> m_navigraphData;
 
-    bool parseLatLon(std::string ident, UFC::Coordinate &position);
-
  public:
     Route(std::shared_ptr<NavigraphData> navigraphData, FlightMap* map, std::shared_ptr<Flight> flightId);
 
-    bool parseRoute();
+    bool parseRoute(
+    );
+
+    bool createRoute();
 
     void projPaint(QPainter* painter) override;
 };

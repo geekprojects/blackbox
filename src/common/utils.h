@@ -16,8 +16,11 @@ class Utils
  public:
     static float degreesToRadians(float degrees);
     static float radiansToDegreens(float radians);
+    static double distance(double lat1, double lon1, double lat2, double lon2);
     static double distance(UFC::Coordinate c1, UFC::Coordinate c2);
     static double angleFromCoordinate(UFC::Coordinate coord1, UFC::Coordinate coord2);
+
+    static std::vector<std::string> splitString(std::string line);
 
     static void ltrim(std::string &s)
     {

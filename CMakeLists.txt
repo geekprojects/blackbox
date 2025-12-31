@@ -68,6 +68,10 @@ qt_add_executable(BlackBox
         src/ui/map/polyline.h
         src/ui/map/routemarker.cpp
         src/ui/map/routemarker.h
+        src/ui/utils/greatcircle.cpp
+        src/ui/utils/greatcircle.h
+        src/ui/map/routeparser.cpp
+        src/ui/map/routeparser.h
 )
 
 qt_add_resources(BlackBox "images"

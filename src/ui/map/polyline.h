@@ -9,6 +9,8 @@
 
 #include "routemap.h"
 
+#include "../utils/greatcircle.h"
+
 struct Flight;
 
 struct Point

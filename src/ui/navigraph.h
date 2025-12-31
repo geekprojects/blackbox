@@ -18,6 +18,7 @@ enum class NavAidType
     WAYPOINT,
     VOR,
     AIRPORT,
+    AIRWAY,
 };
 
 struct Airport
@@ -36,6 +37,13 @@ struct NavAid
     std::string typeStr;
     NavAidType type;
     UFC::Coordinate coordinate;
+
+    // Airway
+    uint64_t sequenceNo;
+
+    // Internal DB ids
+    uint64_t sourceId;
+    uint64_t nextId;
 };
 
 class NavigraphData : public Database
@@ -47,6 +55,8 @@ class NavigraphData : public Database
     sqlite3_stmt* m_findDepartureStatement = nullptr;
     sqlite3_stmt* m_findArrivalStatement = nullptr;
     sqlite3_stmt* m_findAirwayStatement = nullptr;
+    sqlite3_stmt* m_findNextAirwayStatement = nullptr;
+    sqlite3_stmt* m_findPreviousAirwayStatement = nullptr;
 
  public:
     explicit NavigraphData(std::string dataPath);
@@ -60,9 +70,12 @@ class NavigraphData : public Database
     bool findNavAid(std::string name, NavAid &waypoint, UFC::Coordinate near);
     std::vector<NavAid> findNavAid(std::string name);
 
-    bool findAirway(std::string ident);
     bool findDeparture(std::string airportCode, std::string name);
     bool findArrival(std::string airportCode, std::string name);
+
+    bool findAirway(std::string ident);
+    bool findAirway(std::string ident, uint64_t entryWaypointId, NavAid &navAid, bool forward);
+    bool expandAirway(std::string ident, uint64_t entryWaypointId, uint64_t exitWaypointId, std::vector<NavAid> &navAids);
 };
 
 #endif //BLACKBOX_NAVIGRAPH_H

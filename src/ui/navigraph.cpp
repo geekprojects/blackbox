@@ -27,7 +27,7 @@ bool NavigraphData::open()
         return false;
     }
 
-    string sql = "SELECT lonx, laty, nav_type, name FROM nav_search WHERE ident=?";
+    string sql = "SELECT lonx, laty, nav_type, name, waypoint_id FROM nav_search WHERE ident=?";
     int res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findNavStatement, nullptr);
     if (res != SQLITE_OK)
     {
@@ -67,6 +67,33 @@ bool NavigraphData::open()
         return false;
     }
 
+    sql =
+        "SELECT"
+        "    aw.sequence_no, aw.from_waypoint_id, aw.to_waypoint_id, w.ident, w.lonx, w.laty"
+        "  FROM airway aw "
+        "  JOIN waypoint w ON w.waypoint_id = aw.to_waypoint_id "
+        "  WHERE airway_name=? AND from_waypoint_id=?";
+
+    res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findNextAirwayStatement, nullptr);
+    if (res != SQLITE_OK)
+    {
+        log(ERROR, "expandAirway: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
+        return false;
+    }
+    sql =
+    "SELECT"
+    "    aw.sequence_no, aw.from_waypoint_id, aw.to_waypoint_id, w.ident, w.lonx, w.laty"
+    "  FROM airway aw "
+    "  JOIN waypoint w ON w.waypoint_id = aw.from_waypoint_id "
+    "  WHERE airway_name=? AND to_waypoint_id=?";
+
+    res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findPreviousAirwayStatement, nullptr);
+    if (res != SQLITE_OK)
+    {
+        log(ERROR, "expandAirway: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
+        return false;
+    }
+
     return true;
 }
 
@@ -102,6 +129,7 @@ vector<NavAid> NavigraphData::findNavAid(std::string name)//, NavAid &waypoint, 
             navAid.coordinate.latitude = sqlite3_column_double(m_findNavStatement, 1);
             navAid.typeStr = getString(m_findNavStatement, 2);
             navAid.name = getString(m_findNavStatement, 3);
+            navAid.sourceId = sqlite3_column_int64(m_findNavStatement, 4);
             navAid.ident = name;
 
             if (navAid.typeStr.find('W') != string::npos)
@@ -185,6 +213,7 @@ bool NavigraphData::findArrival(std::string airportCode, std::string name)
     return found;
 }
 
+
 bool NavigraphData::findAirport(string code, Airport &airport)
 {
     if (!isOpen())
@@ -261,3 +290,109 @@ bool NavigraphData::findAirway(std::string ident)
     return found;
 }
 
+bool NavigraphData::findAirway(std::string ident, uint64_t entryWaypointId, NavAid &navAid, bool forward)
+{
+    sqlite3_stmt* stmt;
+    if (forward)
+    {
+        stmt = m_findNextAirwayStatement;
+    }
+    else
+    {
+        stmt = m_findPreviousAirwayStatement;
+    }
+    sqlite3_bind_text(stmt, 1, ident.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 2, entryWaypointId);
+
+    int s;
+    s = sqlite3_step(stmt);
+    bool found = false;
+    if (s == SQLITE_ROW)
+    {
+        navAid.type = NavAidType::WAYPOINT;
+        navAid.sequenceNo = sqlite3_column_int64(stmt, 0);
+        navAid.sourceId = sqlite3_column_int64(stmt, 1);
+        navAid.nextId = sqlite3_column_int64(stmt, 2);
+
+        navAid.ident = getString(stmt, 3);
+        navAid.coordinate.longitude = sqlite3_column_double(stmt, 4);
+        navAid.coordinate.latitude = sqlite3_column_double(stmt, 5);
+        printf("expandAirway: %s: %lld: %llu -> %llu: %s (%f, %f)\n", ident.c_str(), navAid.sequenceNo, navAid.sourceId, navAid.nextId,
+        navAid.ident.c_str(), navAid.coordinate.longitude, navAid.coordinate.latitude);
+        found = true;
+    }
+
+    sqlite3_reset(stmt);
+    return found;
+}
+
+bool NavigraphData::expandAirway(std::string ident, uint64_t entryWaypointId, uint64_t exitWaypointId, vector<NavAid>& navAids)
+{
+    printf("expandAirway: %s: %llu -> %llu\n", ident.c_str(), entryWaypointId, exitWaypointId);
+
+    NavAid from;
+    bool found = findAirway(ident, entryWaypointId, from, true);
+    if (!found)
+    {
+        printf("expandAirway: Unable to find entry waypoint: %llu\n", entryWaypointId);
+        return false;
+    }
+
+    NavAid to;
+    found = findAirway(ident, exitWaypointId, to, false);
+    if (!found)
+    {
+        printf("expandAirway: Unable to find exit waypoint: %llu\n", entryWaypointId);
+        return false;
+    }
+
+    if (from.sequenceNo == to.sequenceNo)
+    {
+        return true;
+    }
+
+    bool forwards = from.sequenceNo < to.sequenceNo;
+    uint64_t nextId;
+    uint64_t endId;
+    if (forwards)
+    {
+        printf("Forward!\n");
+        nextId = from.nextId;
+        endId = to.sourceId;
+    }
+    else
+    {
+        printf("Backwards!\n");
+        nextId = from.sourceId;
+        endId = to.nextId;
+    }
+
+    bool done = false;
+    while (!done)
+    {
+        NavAid navAid;
+        bool found = findAirway(ident, nextId, navAid, forwards);
+        if (!found)
+        {
+            printf("expandAirway: Unable to find waypoint: %llu\n", nextId);
+            return false;
+        }
+
+        if (navAid.sourceId == endId)
+        {
+            break;
+        }
+
+        navAids.push_back(navAid);
+
+        if (forwards)
+        {
+            nextId = navAid.nextId;
+        }
+        else
+        {
+            nextId = navAid.sourceId;
+        }
+    }
+    return true;
+}

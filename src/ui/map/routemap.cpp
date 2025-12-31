@@ -112,7 +112,7 @@ void FlightMap::showFlight(uint64_t flightId)
         if (flight != nullptr)
         {
             Route* route = new Route(m_blackBoxUI->getNavigraph(), this, flight);
-            if (route->parseRoute())
+            if (route->createRoute())
             {
                 m_routesLayer->addItem(route);
                 m_routes.push_back(route);
