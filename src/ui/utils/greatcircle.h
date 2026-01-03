@@ -17,12 +17,20 @@ class GreatCircle
     QGV::GeoPos m_end;
     double m_g;
 
+    [[nodiscard]] QGV::GeoPos interpolate(double f) const;
+
+    [[nodiscard]] std::vector<QGV::GeoPos> arcFirstPass(int numPoints) const;
+
+    static bool calculateLongitudeDifferences(const std::vector<QGV::GeoPos> &firstPass, double &dfMaxSmallDiffLong);
+    static void handleBigDifference(const std::vector<QGV::GeoPos> &firstPass, std::vector<std::vector<QGV::GeoPos>> poMulti);
+
+
+    static std::vector<QGV::GeoPos> aggregateArc(const std::vector<std::vector<QGV::GeoPos>> &poMulti);
+
  public:
-    GreatCircle(QGV::GeoPos start, QGV::GeoPos end);
+    GreatCircle(const QGV::GeoPos &start, const QGV::GeoPos &end);
 
-    QGV::GeoPos interpolate(double f);
-
-    std::vector<QGV::GeoPos> arc(int numPoints);
+    [[nodiscard]] std::vector<QGV::GeoPos> arc(int numPoints) const;
 };
 
 

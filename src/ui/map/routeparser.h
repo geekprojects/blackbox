@@ -24,7 +24,8 @@ class RouteParser : public BlackBox::Logger
 
     void expandAirways(std::vector<RoutePoint> &resolvedPoints, std::vector<std::shared_ptr<RoutePoint>> parsedPoints);
 
-    static std::vector<RoutePoint> generateGreatCirclePaths(std::vector<RoutePoint> &points);
+    std::vector<RoutePoint> generateGreatCirclePaths(std::vector<RoutePoint> &points);
+
     static void generateGreatCirclePath(
         std::vector<RoutePoint> &greatCircleRoute,
         RoutePoint const &rp,

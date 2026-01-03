@@ -8,6 +8,7 @@
 #include "common/utils.h"
 
 using namespace std;
+using namespace BlackBox;
 
 enum class RouteState
 {
@@ -15,6 +16,12 @@ enum class RouteState
     ENROUTE,
     END
 };
+
+RouteParser::RouteParser(const std::shared_ptr<NavigraphData> &navigraphData) :
+    Logger("RouteParser"),
+    m_navigraphData(navigraphData)
+{
+}
 
 bool RouteParser::parseRoute(
     const std::shared_ptr<Flight>& flight,
@@ -39,7 +46,7 @@ bool RouteParser::parseRoute(
             info = part.substr(idx + 1);
         }
 
-        printf("parseRoute: ident=%s, info=%s\n", ident.c_str(), info.c_str());
+        log(DEBUG, "parseRoute: ident=%s, info=%s", ident.c_str(), info.c_str());
         shared_ptr<RoutePoint> rp = nullptr;
         if (state == RouteState::START)
         {
@@ -52,7 +59,11 @@ bool RouteParser::parseRoute(
                     isAirport = m_navigraphData->findAirport(ident, otherAirport);
                     if (!isAirport)
                     {
-                        printf("parseRoute: Starting with different airport: %s != %s\n", ident.c_str(), flight->origin.c_str());
+                        log(
+                            WARN,
+                            "parseRoute: Starting with different airport: %s != %s",
+                            ident.c_str(),
+                            flight->origin.c_str());
                     }
                     else
                     {
@@ -62,11 +73,16 @@ bool RouteParser::parseRoute(
 
                 if (isAirport)
                 {
-                    printf("parseRoute: Origin: %s (%s) Runway: %s\n", originAirport.code.c_str(), ident.c_str(), info.c_str());
+                    log(
+                        DEBUG,
+                        "parseRoute: Origin: %s (%s) Runway: %s",
+                        originAirport.code.c_str(),
+                        ident.c_str(),
+                        info.c_str());
                 }
                 else
                 {
-                    printf("parseRoute: Invalid airport: %s\n", ident.c_str());
+                    log(WARN, "parseRoute: Invalid airport: %s", ident.c_str());
                     state = RouteState::ENROUTE;
                     it--;
                 }
@@ -76,7 +92,7 @@ bool RouteParser::parseRoute(
                 bool isDeparture = m_navigraphData->findDeparture(originAirport.code, ident);
                 if (isDeparture)
                 {
-                    printf("parseRoute: Departure: %s\n", ident.c_str());
+                    log(DEBUG, "parseRoute: Departure: %s", ident.c_str());
                 }
                 else
                 {
@@ -92,7 +108,12 @@ bool RouteParser::parseRoute(
 
             if (rp != nullptr)
             {
-                printf("parseRoute: Waypoint: %s (%s): %ls\n", navAid.name.c_str(), ident.c_str(), lastCoord.toString().c_str());
+                log(
+                    DEBUG,
+                    "parseRoute: Waypoint: %s (%s): %ls",
+                    navAid.name.c_str(),
+                    ident.c_str(),
+                    lastCoord.toString().c_str());
                 parsedPoints.push_back(rp);
                 parseAirway(route, it, rp);
             }
@@ -111,13 +132,17 @@ bool RouteParser::parseRoute(
                         bool found = m_navigraphData->findAirport(ident, dest);
                         if (found)
                         {
-                            printf("parseRoute: Destination airport doesn't match!: %s != %s", dest.code.c_str(), flight->destination.c_str());
+                            log(
+                                DEBUG,
+                                "parseRoute: Destination airport doesn't match!: %s != %s",
+                                dest.code.c_str(),
+                                flight->destination.c_str());
                             destAirport = dest;
                             state = RouteState::END;
                         }
                         else
                         {
-                            printf("parseRoute: Unknown waypoint: %s\n", ident.c_str());
+                            log(WARN, "parseRoute: Unknown waypoint: %s", ident.c_str());
                         }
                     }
                     else
@@ -129,18 +154,28 @@ bool RouteParser::parseRoute(
         }
     }
 
-    printf("parseRoute: Origin: %s: %s\n", originAirport.code.c_str(), originAirport.name.c_str());
+    log(
+        DEBUG,
+        "parseRoute: Origin: %s: %s",
+        originAirport.code.c_str(),
+        originAirport.name.c_str());
     addAirport(originAirport, resolvedPoints);
 
     expandAirways(resolvedPoints, parsedPoints);
     addAirport(destAirport, resolvedPoints);
 
-    printf("parseRoute: Destination: %s: %s\n", destAirport.code.c_str(), destAirport.name.c_str());
+    log(
+        DEBUG,
+        "parseRoute: Destination: %s: %s",
+        destAirport.code.c_str(),
+        destAirport.name.c_str());
 
     return true;
 }
 
-void RouteParser::expandAirways(std::vector<RoutePoint> &resolvedPoints, vector<std::shared_ptr<RoutePoint>> parsedPoints)
+void RouteParser::expandAirways(
+    std::vector<RoutePoint> &resolvedPoints,
+    vector<std::shared_ptr<RoutePoint>> parsedPoints)
 {
     for (auto it = parsedPoints.begin(); it != parsedPoints.end(); ++it)
     {
@@ -149,7 +184,7 @@ void RouteParser::expandAirways(std::vector<RoutePoint> &resolvedPoints, vector<
         if ((it + 1) != parsedPoints.end())
         {
             auto nextPoint = *(it + 1);
-            printf("parseRoute: %s -> %s\n", point->name.c_str(), nextPoint->name.c_str());
+            log( DEBUG, "parseRoute: %s -> %s", point->name.c_str(), nextPoint->name.c_str());
             if (point->type == NavAidType::WAYPOINT &&
                 point->sourceId != 0 &&
                 nextPoint->type == NavAidType::WAYPOINT &&
@@ -157,9 +192,13 @@ void RouteParser::expandAirways(std::vector<RoutePoint> &resolvedPoints, vector<
             {
                 if (!point->airway.empty())
                 {
-                    printf("parseRoute:  -> Airway: %s\n", point->airway.c_str());
+                    log(DEBUG, "parseRoute:  -> Airway: %s", point->airway.c_str());
                     vector<NavAid> airwayPoints;
-                    m_navigraphData->expandAirway(point->airway, point->sourceId, nextPoint->sourceId, airwayPoints);
+                    m_navigraphData->expandAirway(
+                        point->airway,
+                        point->sourceId,
+                        nextPoint->sourceId,
+                        airwayPoints);
                     for (auto const& ap : airwayPoints)
                     {
                         RoutePoint rp;
@@ -172,13 +211,12 @@ void RouteParser::expandAirways(std::vector<RoutePoint> &resolvedPoints, vector<
                 }
                 else
                 {
-                    printf("parseRoute:  -> No airway connecting to next point\n");
+                    log(DEBUG, "parseRoute:  -> No airway connecting to next point");
                 }
             }
         }
     }
 }
-
 
 vector<RoutePoint> RouteParser::generateGreatCirclePaths(std::vector<RoutePoint> &points)
 {
@@ -190,8 +228,17 @@ vector<RoutePoint> RouteParser::generateGreatCirclePaths(std::vector<RoutePoint>
         if (it != points.begin())
         {
             auto const& prev = *(it - 1);
-            auto distance = Utils::distance(prev.position.latitude(), prev.position.longitude(), rp.position.latitude(), rp.position.longitude());
-            printf("parseRoute: Distance from %s to %s: %0.2f\n", prev.name.c_str(), rp.name.c_str(), distance);
+            auto distance = Utils::distance(
+                prev.position.latitude(),
+                prev.position.longitude(),
+                rp.position.latitude(),
+                rp.position.longitude());
+            log(
+                DEBUG,
+                "parseRoute: Distance from %s to %s: %0.2f",
+                prev.name.c_str(),
+                rp.name.c_str(),
+                distance);
             if (distance > 300.0f)
             {
                 generateGreatCirclePath(greatCircleRoute, rp, prev, distance);
@@ -297,7 +344,7 @@ void RouteParser::parseAirway(std::vector<std::string> route, std::vector<std::s
         }
         if (isAirway)
         {
-            printf("parseRoute: Airway: %s\n", next.c_str());
+            log(DEBUG, "parseRoute: Airway: %s", next.c_str());
             rp->airway = next;
             it++;
         }
@@ -305,11 +352,6 @@ void RouteParser::parseAirway(std::vector<std::string> route, std::vector<std::s
 }
 
 
-RouteParser::RouteParser(const std::shared_ptr<NavigraphData> &navigraphData) :
-    Logger("RouteParser"),
-    m_navigraphData(navigraphData)
-{
-}
 
 bool RouteParser::createRoute(const std::shared_ptr<Flight>& flight, std::vector<RoutePoint>& points)
 {
@@ -328,13 +370,13 @@ bool RouteParser::createRoute(const std::shared_ptr<Flight>& flight, std::vector
         }
         else
         {
-            printf("parseRoute: Invalid origin: %s\n", flight->origin.c_str());
+            log(WARN, "parseRoute: Invalid origin: %s", flight->origin.c_str());
         }
     }
     else
     {
         // No origin set??
-        printf("parseRoute: No origin set! This may end badly\n");
+        log(WARN, "parseRoute: No origin set! This may end badly");
         originAirport.code = flight->origin;
     }
 
@@ -347,7 +389,7 @@ bool RouteParser::createRoute(const std::shared_ptr<Flight>& flight, std::vector
         }
         else
         {
-            printf("parseRoute: Invalid destination: %s\n", flight->destination.c_str());
+            log(WARN, "parseRoute: Invalid destination: %s", flight->destination.c_str());
         }
     }
 
@@ -386,7 +428,7 @@ bool RouteParser::parseLatLon(const std::string& ident, UFC::Coordinate& positio
             lonDeg = -lonDeg;
         }
 
-        printf("parseLonLat(7): %d %c %d %c\n", latDeg, latDir, lonDeg, lonDir);
+        //printf("parseLonLat(7): %d %c %d %c\n", latDeg, latDir, lonDeg, lonDir);
         position.latitude = static_cast<float>(latDeg);
         position.longitude = static_cast<float>(lonDeg);
         return true;
@@ -425,7 +467,7 @@ bool RouteParser::parseLatLon(const std::string& ident, UFC::Coordinate& positio
         const float lat = (float)latDeg + ((float)latMins / 60.0f);
         const float lon = (float)lonDeg + ((float)lonMins / 60.0f);
 
-        printf("parseLonLat(11): %d %c %d %c -> %f, %f\n", latDeg, latDir, lonDeg, lonDir, lat, lon);
+        //printf("parseLonLat(11): %d %c %d %c -> %f, %f\n", latDeg, latDir, lonDeg, lonDir, lat, lon);
         position.latitude = lat;
         position.longitude = lon;
         return true;
