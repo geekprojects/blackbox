@@ -7,6 +7,7 @@
 
 #include <sqlite3.h>
 #include <string>
+#include <vector>
 
 #include "logger.h"
 
@@ -14,10 +15,14 @@ class Database : public BlackBox::Logger
 {
     sqlite3* m_db = nullptr;
 
+    std::vector<sqlite3_stmt*> m_statements;
+
  protected:
     explicit Database(std::string name);
 
     static std::string getString(sqlite3_stmt* stmt, int col);
+
+    bool prepare(const std::string &sql, sqlite3_stmt** stmt);
 
  public:
     ~Database() override;

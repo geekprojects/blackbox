@@ -17,23 +17,9 @@ DataStore::DataStore() : Database("DataStore")
 
 DataStore::~DataStore()
 {
-    if (m_writeStatusStatement != nullptr)
-    {
-        sqlite3_finalize(m_writeStatusStatement);
-    }
-    if (m_fetchStatusStatement != nullptr)
-    {
-        sqlite3_finalize(m_fetchStatusStatement);
-    }
-    if (m_insertScreenshotStatement != nullptr)
-    {
-        sqlite3_finalize(m_insertScreenshotStatement);
-    }
-
-    Database::close();
 }
 
-bool DataStore::init(string dbPath)
+bool DataStore::init(const string &dbPath)
 {
     if (!open(dbPath))
     {
@@ -44,22 +30,18 @@ bool DataStore::init(string dbPath)
     char* err;
 
     // Make sure Write Ahead Logging is enabled
-    sql = "PRAGMA journal_mode=WAL";
     sqlite3_stmt *stmt;
-    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &stmt, nullptr);
-    if (res != SQLITE_OK)
+    if (!prepare("PRAGMA journal_mode=WAL", &stmt))
     {
-        log(ERROR, "init: Failed to prepare WAL statement: %d: %s", sqlite3_errmsg(getDB()));
         return false;
     }
-    res = sqlite3_step(stmt);
+
+    int res = sqlite3_step(stmt);
     if (res == SQLITE_ROW)
     {
         string mode = getString(stmt, 0);
         log(DEBUG, "init: journal mode: %s", mode.c_str());
     }
-    sqlite3_finalize(stmt);
-
     sql =
         "CREATE TABLE IF NOT EXISTS flights ("
         "    id INTEGER PRIMARY KEY,"
@@ -114,16 +96,19 @@ bool DataStore::init(string dbPath)
         return false;
     }
 
-    sql =
+    if (!prepare(
         "INSERT"
         "  INTO flight_state"
         "    (id, flight_id, phase, event, timestamp, sim_time, latitude, longitude, altitude, agl, fpm, fpm_average, g_force, pitch, yaw, roll, ground_speed, indicated_air_speed)"
         "  VALUES"
-        "    (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &m_writeStatusStatement, nullptr);
-    if (res != SQLITE_OK)
+        "    (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        &m_writeStatusStatement))
     {
-        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
+        return false;
+    }
+
+    if (!prepare("DELETE FROM flight_state WHERE id=? AND flight_id=?", &m_deleteStatusStatement))
+    {
         return false;
     }
 
@@ -142,8 +127,9 @@ bool DataStore::init(string dbPath)
         return false;
     }
 
-    sql =
+    if (!prepare(
         "SELECT"
+        "    id,"
         "    phase,"
         "    event,"
         "    timestamp,"
@@ -162,15 +148,14 @@ bool DataStore::init(string dbPath)
         "    indicated_air_speed"
         "  FROM flight_state"
         "  WHERE flight_id=? AND timestamp > ?"
-        "  ORDER BY timestamp ASC";
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &m_fetchStatusStatement, nullptr);
-    if (res != SQLITE_OK)
+        "  ORDER BY timestamp ASC",
+        &m_fetchStatusStatement))
     {
         log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
-    sql =
+    if (!prepare(
         "INSERT INTO screenshots ("
         "    id,"
         "    flight_id,"
@@ -179,15 +164,13 @@ bool DataStore::init(string dbPath)
         "    path"
         "  ) VALUES ("
         "    NULL, ?, ?, ? ,?"
-        ")";
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &m_insertScreenshotStatement, nullptr);
-    if (res != SQLITE_OK)
+        ")",
+        &m_insertScreenshotStatement))
     {
-        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
-    sql =
+    if (!prepare(
         "SELECT "
         "    ss.id,"
         "    ss.flight_id,"
@@ -202,11 +185,19 @@ bool DataStore::init(string dbPath)
         "  WHERE"
         "    ss.flight_id = ? AND"
         "    ss.timestamp > ?"
-        "  ORDER BY ss.timestamp ASC";
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &m_fetchScreenshotStatement, nullptr);
-    if (res != SQLITE_OK)
+        "  ORDER BY ss.timestamp ASC",
+        &m_fetchScreenshotStatement))
     {
-        log(ERROR, "init: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
+        return false;
+    }
+
+    if (!prepare("SELECT COUNT(1) FROM flight_state WHERE flight_id=?", &m_countStatusStatement))
+    {
+        return false;
+    }
+
+    if (!prepare("UPDATE flight_state SET flight_id=? WHERE flight_id=?", &m_moveStatusStatement))
+    {
         return false;
     }
 
@@ -251,7 +242,7 @@ uint64_t DataStore::createFlight(Flight& flight)
 
 void DataStore::updateFlight(const Flight& flight)
 {
-    string sql = "UPDATE flights SET origin=?, destination=?, aircraft_type=?, aircraft_registration=?, flight_code=? WHERE id=?";
+    string sql = "UPDATE flights SET origin=?, destination=?, aircraft_type=?, aircraft_registration=?, flight_code=?, route=? WHERE id=?";
     sqlite3_stmt *stmt;
     int res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &stmt, nullptr);
     if (res != SQLITE_OK)
@@ -265,7 +256,8 @@ void DataStore::updateFlight(const Flight& flight)
     sqlite3_bind_text(stmt, 3, flight.icaoType.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 4, flight.registration.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 5, flight.flightId.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 6, flight.id);
+    sqlite3_bind_text(stmt, 6, flight.route.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 7, flight.id);
 
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE)
@@ -375,6 +367,7 @@ std::vector<State> DataStore::fetchUpdates(uint64_t flightId, uint64_t sinceTime
         {
             int col = 0;
             State state;
+            state.id = sqlite3_column_int64(m_fetchStatusStatement, col++);
             string phase = getString(m_fetchStatusStatement, col++);
             state.setPhase(phase);
             string event = getString(m_fetchStatusStatement, col++);
@@ -408,6 +401,52 @@ std::vector<State> DataStore::fetchUpdates(uint64_t flightId, uint64_t sinceTime
     return states;
 }
 
+uint64_t DataStore::countUpdates(uint64_t flightId)
+{
+    sqlite3_bind_int64(m_countStatusStatement, 1, flightId);
+    auto res = sqlite3_step(m_countStatusStatement);
+    uint64_t count = 0;
+    if (res == SQLITE_ROW)
+    {
+        count = sqlite3_column_int64(m_countStatusStatement, 0);
+    }
+    else
+    {
+        log(ERROR, "countUpdates: Failed to count updates: %d: %s", res, sqlite3_errmsg(getDB()));
+    }
+
+    sqlite3_reset(m_countStatusStatement);
+    return count;
+}
+
+void DataStore::deleteState(uint64_t flightId, uint64_t stateId)
+{
+    sqlite3_bind_int64(m_deleteStatusStatement, 1, stateId);
+    sqlite3_bind_int64(m_deleteStatusStatement, 2, flightId);
+
+    auto res = sqlite3_step(m_deleteStatusStatement);
+    if (res != SQLITE_DONE)
+    {
+        log(ERROR, "deleteState: Failed to delete state: %d: %s", res, sqlite3_errmsg(getDB()));
+    }
+
+    sqlite3_reset(m_deleteStatusStatement);
+}
+
+void DataStore::moveStates(uint64_t from, uint64_t to)
+{
+    sqlite3_bind_int64(m_moveStatusStatement, 1, to);
+    sqlite3_bind_int64(m_moveStatusStatement, 2, from);
+
+    auto res = sqlite3_step(m_moveStatusStatement);
+    if (res != SQLITE_DONE)
+    {
+        log(ERROR, "moveStates: Failed to move state: %d: %s", res, sqlite3_errmsg(getDB()));
+    }
+
+    sqlite3_reset(m_moveStatusStatement);
+}
+
 void DataStore::writeScreenshot(Screenshot& screenshot)
 {
     sqlite3_bind_int64(m_insertScreenshotStatement, 1, screenshot.flightId);
@@ -417,13 +456,15 @@ void DataStore::writeScreenshot(Screenshot& screenshot)
 
     scoped_lock lock(m_insertMutex);
     auto res = sqlite3_step(m_insertScreenshotStatement);
-    if (res != SQLITE_DONE)
+    if (res == SQLITE_DONE)
+    {
+        screenshot.id = sqlite3_last_insert_rowid(getDB());
+    }
+    else
     {
         log(ERROR, "createFlight: Failed to insert flight: %d: %s", res, sqlite3_errmsg(getDB()));
-        return;
     }
 
-    screenshot.id = sqlite3_last_insert_rowid(getDB());
     sqlite3_reset(m_insertScreenshotStatement);
 }
 
@@ -461,7 +502,6 @@ vector<Screenshot> DataStore::fetchScreenshots(uint64_t flightId, uint64_t since
 
     return screenshots;
 }
-
 
 void DataStore::deleteFlight(uint64_t flightId)
 {

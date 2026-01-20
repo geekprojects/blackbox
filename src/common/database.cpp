@@ -41,6 +41,12 @@ bool Database::open(string path, bool readOnly)
 
 void Database::close()
 {
+    for (auto stmt : m_statements)
+    {
+        sqlite3_finalize(stmt);
+    }
+    m_statements.clear();
+
     if (m_db != nullptr)
     {
         sqlite3_close(m_db);
@@ -74,4 +80,18 @@ string Database::getString(sqlite3_stmt* stmt, int col)
         return "";
     }
     return {reinterpret_cast<const char*>(str)};
+}
+
+bool Database::prepare(const std::string &sql, sqlite3_stmt** stmt)
+{
+    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, stmt, nullptr);
+    if (res != SQLITE_OK)
+    {
+        log(ERROR, "prepare: Failed to prepare statement: %d: %s: %s", res, sqlite3_errmsg(getDB()), sql.c_str());
+        return false;
+    }
+
+    m_statements.push_back(*stmt);
+
+    return true;
 }

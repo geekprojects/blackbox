@@ -29,6 +29,8 @@ enum class EventType
 
 struct State
 {
+    uint64_t id;
+
     UFC::Coordinate position;
     float agl = 0.0f;
 
