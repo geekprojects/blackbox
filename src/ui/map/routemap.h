@@ -41,7 +41,7 @@ class FlightMap : public QGVMap
     MapMode m_mode = MapMode::ROUTE;
     LineType m_lineType = LineType::ALTITUDE;
 
-    QGVLayerTilesOnline* m_backgroundLayer = nullptr;
+    QGVLayerTiles* m_backgroundLayer = nullptr;
     QGVLayer* m_itemsLayer = nullptr;
     QGVLayer* m_routesLayer = nullptr;
 
@@ -59,6 +59,8 @@ public:
     void clearRoutes();
 
     Track* addRoute(std::shared_ptr<Flight> flight);
+
+    void refreshRoutes(uint64_t flightId);
 
     void showFlight(uint64_t flightId);
 

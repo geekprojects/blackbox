@@ -7,6 +7,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOUIC_SEARCH_PATHS src/ui)
 
+set(QT_USE_RISKY_DSYM_ARCHIVING_WORKAROUND ON)
+
 find_library(GEOVIEW_LIBRARY qgeoview)
 find_library(SQLITE3_LIBRARY NAMES sqlite3 )
 
@@ -16,7 +18,6 @@ qt_standard_project_setup(REQUIRES 6.8)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libfswatch REQUIRED libfswatch)
 pkg_check_modules(nlohmann_json REQUIRED nlohmann_json)
-#pkg_check_modules(libufc REQUIRED libufc)
 
 add_definitions(
         -I/usr/local/include
@@ -72,6 +73,14 @@ qt_add_executable(BlackBox
         src/ui/utils/greatcircle.h
         src/ui/map/routeparser.cpp
         src/ui/map/routeparser.h
+        src/ui/utils/mergeflights.cpp
+        src/ui/utils/mergeflights.h
+        src/ui/flightswindow.cpp
+        src/ui/flightswindow.h
+        src/ui/widgets/airporttablemodel.cpp
+        src/ui/widgets/airporttablemodel.h
+        src/ui/widgets/airportwidget.cpp
+        src/ui/widgets/airportwidget.h
 )
 
 qt_add_resources(BlackBox "images"
@@ -89,6 +98,7 @@ qt_add_resources(BlackBox "images"
         data/images/plane.svg
         data/images/plane-marker.svg
         data/images/plane-red.png
+        data/images/table.svg
         data/images/trending-up-down.svg
 )
 

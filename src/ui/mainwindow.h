@@ -69,6 +69,7 @@ public:
     void deleteCurrentFlight();
 
     [[nodiscard]] BlackBoxUI* getBlackBoxUI() const { return m_blackBoxUI; }
+    FlightMap* getMap() { return m_map; }
 };
 
 #endif //BLACKBOX_MAINWINDOW_H

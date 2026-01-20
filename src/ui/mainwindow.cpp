@@ -56,17 +56,19 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
     importMenu->addAction("Volanta...", [this] { importVolanta(); });
     fileMenu->addAction("Settings", [this] { m_settingsWindow->show(); });
 
-    menu->addMenu("Window");
-
     auto helpMenu = menu->addMenu("Help");
     helpMenu->addAction("About", [this]
     {
         QMessageBox::about(this, "BlackBox Flight Tracker", "BlackBox Flight Tracker v0.1");
     });
+
     helpMenu->addAction("About Qt", [this]
     {
         QMessageBox::aboutQt(this);
     });
+
+    auto windowMenu = menu->addMenu("Window");
+    windowMenu->addAction("Flights Manager", [this] { m_blackBoxUI->openFlightsWindow(); });
 
     setCentralWidget(new QWidget());
 
@@ -161,6 +163,11 @@ void MainWindow::buildFlightSelectionWidget()
     m_flightComboBox->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Preferred);
     m_flightComboBox->addItem("MMMMMMMMMMMMMMMMM");
     topRow->addWidget(m_flightComboBox);
+
+    auto tableButton = new QToolButton();
+    tableButton->setIcon(QIcon(":/images/table.svg"));
+    connect(tableButton, &QToolButton::clicked, m_blackBoxUI, &BlackBoxUI::openFlightsWindow);
+    topRow->addWidget(tableButton);
 
     auto expandButton = new QToolButton();
     expandButton->setStyleSheet("QToolButton {border: 0;}");
@@ -271,6 +278,12 @@ void MainWindow::updateFlights()
     auto currentFlightId = m_blackBoxUI->getCurrentFlight();
     for (auto flight : flights)
     {
+        if (flight->stateCount == 0 && flight->id != currentFlightId->id)
+        {
+            printf("updateFlights: Skipping Flight %lld\n", flight->id);
+            continue;
+        }
+
         string title;
 
         bool comma = false;
@@ -327,19 +340,7 @@ void MainWindow::updateFlights()
 
 void MainWindow::deleteCurrentFlight()
 {
-    QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(
-        this,
-        "Delete Flight",
-        "Are you sure you wish to delete this fight? This action cannot be undone.",
-        QMessageBox::Yes|QMessageBox::No);
-    if (reply == QMessageBox::Yes)
-    {
-        // Well, we'd better delete it, then
-        m_map->clearRoutes();
-        m_blackBoxUI->getDataStore().deleteFlight(m_blackBoxUI->getCurrentFlight()->id);
-        m_blackBoxUI->updateFlights();
-    }
+    m_blackBoxUI->deleteFlight(m_blackBoxUI->getCurrentFlight());
 }
 
 void MainWindow::selectFlight(uint64_t flightId)

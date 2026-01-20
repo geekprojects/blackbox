@@ -11,10 +11,12 @@
 #include "blackbox/datastore.h"
 
 class MainWindow;
+class FlightsWindow;
 
 class BlackBoxUI : public QApplication
 {
     MainWindow* m_mainWindow = nullptr;
+    FlightsWindow* m_flightsWindow = nullptr;
 
     DataStore m_dataStore;
     std::shared_ptr<NavigraphData> m_navigraph;
@@ -32,6 +34,8 @@ class BlackBoxUI : public QApplication
     ~BlackBoxUI() override = default;
 
     int run();
+
+    void openFlightsWindow() const;
 
     void updateFlights();
     std::shared_ptr<Flight> getCurrentFlight() { return m_currentFlight; }
@@ -54,10 +58,12 @@ class BlackBoxUI : public QApplication
         return nullptr;
     }
     std::vector<std::shared_ptr<Flight>> getFlights() const { return m_flights; }
+    void deleteFlight(std::shared_ptr<Flight> flight);
 
     void setState(const State& state);
     const State& getState() const { return m_latestState; }
 
+    MainWindow* getMainWindow() const { return m_mainWindow; }
     DataStore& getDataStore() { return m_dataStore; }
     std::shared_ptr<NavigraphData> getNavigraph() { return m_navigraph; }
 };

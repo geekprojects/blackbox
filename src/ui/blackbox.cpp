@@ -4,14 +4,18 @@
 
 #include "blackbox.h"
 #include "mainwindow.h"
+#include "flightswindow.h"
+
 #include "map/route.h"
 
 #include <QCommandLineParser>
 #include <QSettings>
 #include <QFileDialog>
+#include <QMessageBox>
 #include <QNetworkDiskCache>
 #include <QStandardPaths>
 
+#include "flightswindow.h"
 #include "map/route.h"
 
 using namespace std;
@@ -84,6 +88,8 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
     setupCachedNetworkAccessManager();
 
     m_mainWindow = new MainWindow(this);
+    m_flightsWindow = new FlightsWindow(this);
+
     m_mainWindow->init();
 }
 
@@ -101,6 +107,11 @@ int BlackBoxUI::run()
 */
     m_mainWindow->show();
     return exec();
+}
+
+void BlackBoxUI::openFlightsWindow() const
+{
+    m_flightsWindow->show();
 }
 
 void BlackBoxUI::updateFlights()
@@ -128,6 +139,8 @@ void BlackBoxUI::updateFlights()
         {
             lastFlight = flight;
         }
+
+        flight->stateCount = m_dataStore.countUpdates(flight->id);
     }
 
     bool foundCurrentFlight = false;
@@ -148,7 +161,23 @@ void BlackBoxUI::updateFlights()
         {
             m_currentFlight = nullptr;
         }
-        m_mainWindow->updateFlights();
+    }
+    m_mainWindow->updateFlights();
+    m_flightsWindow->updateFlights();
+}
+
+void BlackBoxUI::deleteFlight(std::shared_ptr<Flight> flight)
+{
+    auto reply = QMessageBox::question(
+        m_mainWindow,
+        "Delete Flight",
+        QString::fromStdString("Are you sure you wish to delete the fight '" + flight->toString() + "'? This action cannot be undone."),
+        QMessageBox::Yes|QMessageBox::No);
+    if (reply == QMessageBox::Yes)
+    {
+        // Well, we'd better delete it, then
+        getDataStore().deleteFlight(flight->id);
+        updateFlights();
     }
 }
 

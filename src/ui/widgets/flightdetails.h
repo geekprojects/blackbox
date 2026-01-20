@@ -7,9 +7,11 @@
 
 #include <QLabel>
 #include <QPlainTextEdit>
+#include <QLineEdit>
 
 #include "blackbox/datastore.h"
 
+class AirportWidget;
 class QPushButton;
 class MainWindow;
 
@@ -18,15 +20,17 @@ class FlightDetailsWidget : public QWidget
     MainWindow* m_mainWindow;
 
     QLabel* m_aircraftTypeLabel;
-    QLabel* m_registrationLabel;
-    QLabel* m_callsignLabel;
-    QLabel* m_originLabel;
-    QLabel* m_destLabel;
+    QLineEdit* m_registrationLabel;
+    QLineEdit* m_callsignLabel;
+    AirportWidget* m_originAirport;
+    AirportWidget* m_destAirport;
     QPlainTextEdit* m_routeEdit;
 
     QPushButton* m_updateRouteButton;
 
-    void routeChanged();
+    void routeEdited();
+    void routeUpdate();
+    void updated();
 
  public:
     explicit FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent = nullptr);

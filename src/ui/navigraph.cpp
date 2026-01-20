@@ -10,7 +10,7 @@
 using namespace std;
 using namespace BlackBox;
 
-NavigraphData::NavigraphData(std::string dataPath) : Database("Navigraph")
+NavigraphData::NavigraphData(const std::string& dataPath) : Database("Navigraph")
 {
     m_dataPath = dataPath;
 }
@@ -27,89 +27,61 @@ bool NavigraphData::open()
         return false;
     }
 
-    string sql = "SELECT lonx, laty, nav_type, name, waypoint_id FROM nav_search WHERE ident=?";
-    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findNavStatement, nullptr);
-    if (res != SQLITE_OK)
+    if (!prepare("SELECT lonx, laty, nav_type, name, waypoint_id FROM nav_search WHERE ident=?", &m_findNavStatement))
     {
-        log(ERROR, "open: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
-    sql = "SELECT lonx, laty, name FROM airport WHERE ident=?";
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findAirportStatement, nullptr);
-    if (res != SQLITE_OK)
+    if (!prepare("SELECT lonx, laty, name FROM airport WHERE ident=?", &m_findAirportStatement))
     {
-        log(ERROR, "open: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
-    sql = "SELECT type FROM approach WHERE suffix = 'A' AND airport_ident=? AND fix_ident=?";
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findArrivalStatement, nullptr);
-    if (res != SQLITE_OK)
+    if (!prepare("SELECT ident, name FROM airport", &m_getAirportsStatement))
     {
-        log(ERROR, "open: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
-    sql = "SELECT type FROM approach WHERE suffix = 'D' AND airport_ident=? AND fix_ident=?";
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findDepartureStatement, nullptr);
-    if (res != SQLITE_OK)
+    if (!prepare("SELECT type FROM approach WHERE suffix = 'A' AND airport_ident=? AND fix_ident=?", &m_findArrivalStatement))
     {
-        log(ERROR, "open: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
-    sql = "SELECT airway_type FROM airway WHERE airway_name=?";
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findAirwayStatement, nullptr);
-    if (res != SQLITE_OK)
+    if (!prepare("SELECT type FROM approach WHERE suffix = 'D' AND airport_ident=? AND fix_ident=?", &m_findDepartureStatement))
     {
-        log(ERROR, "open: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
-    sql =
+    if (!prepare("SELECT airway_type FROM airway WHERE airway_name=?", &m_findAirwayStatement))
+    {
+        return false;
+    }
+
+    if (!prepare(
         "SELECT"
         "    aw.sequence_no, aw.from_waypoint_id, aw.to_waypoint_id, w.ident, w.lonx, w.laty"
         "  FROM airway aw "
         "  JOIN waypoint w ON w.waypoint_id = aw.to_waypoint_id "
-        "  WHERE airway_name=? AND from_waypoint_id=?";
-
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findNextAirwayStatement, nullptr);
-    if (res != SQLITE_OK)
+        "  WHERE airway_name=? AND from_waypoint_id=?", &m_findNextAirwayStatement))
     {
-        log(ERROR, "expandAirway: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
-    sql =
-    "SELECT"
-    "    aw.sequence_no, aw.from_waypoint_id, aw.to_waypoint_id, w.ident, w.lonx, w.laty"
-    "  FROM airway aw "
-    "  JOIN waypoint w ON w.waypoint_id = aw.from_waypoint_id "
-    "  WHERE airway_name=? AND to_waypoint_id=?";
 
-    res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &m_findPreviousAirwayStatement, nullptr);
-    if (res != SQLITE_OK)
+    if (!prepare(
+    "SELECT"
+        "    aw.sequence_no, aw.from_waypoint_id, aw.to_waypoint_id, w.ident, w.lonx, w.laty"
+        "  FROM airway aw "
+        "  JOIN waypoint w ON w.waypoint_id = aw.from_waypoint_id "
+        "  WHERE airway_name=? AND to_waypoint_id=?",
+        &m_findPreviousAirwayStatement))
     {
-        log(ERROR, "expandAirway: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
         return false;
     }
 
     return true;
 }
 
-void NavigraphData::close()
-{
-    if (m_findNavStatement != nullptr)
-    {
-        sqlite3_finalize(m_findNavStatement);
-    }
-    if (getDB() != nullptr)
-    {
-        sqlite3_close(getDB());
-    }
-}
-
-vector<NavAid> NavigraphData::findNavAid(std::string name)//, NavAid &waypoint, UFC::Coordinate near)
+vector<NavAid> NavigraphData::findNavAid(const std::string& name)
 {
     vector<NavAid> navAids;
     if (!isOpen())
@@ -187,7 +159,7 @@ bool NavigraphData::findDeparture(std::string airportCode, std::string name)
     return found;
 }
 
-bool NavigraphData::findArrival(std::string airportCode, std::string name)
+bool NavigraphData::findArrival(const std::string &airportCode, const std::string &name)
 {
     if (!isOpen())
     {
@@ -214,8 +186,20 @@ bool NavigraphData::findArrival(std::string airportCode, std::string name)
 }
 
 
-bool NavigraphData::findAirport(string code, Airport &airport)
+bool NavigraphData::findAirport(const string &code, Airport &airport)
 {
+    if (code.empty())
+    {
+        return false;
+    }
+
+    auto it = m_airportCache.find(code);
+    if (it != m_airportCache.end())
+    {
+        airport = it->second;
+        return true;
+    }
+
     if (!isOpen())
     {
         airport.name = code;
@@ -242,10 +226,48 @@ bool NavigraphData::findAirport(string code, Airport &airport)
     }
     sqlite3_reset(m_findAirportStatement);
 
+    m_airportCache[code] = airport;
+
     return found;
 }
 
-bool NavigraphData::findNavAid(std::string name, NavAid &waypoint, UFC::Coordinate near)
+std::vector<AirportBasicInfo> NavigraphData::getAirports()
+{
+    if (!m_airportInfoCache.empty())
+    {
+        return m_airportInfoCache;
+    }
+
+    vector<AirportBasicInfo> airports;
+    if (!isOpen())
+    {
+        return m_airportInfoCache;
+    }
+
+    while (true)
+    {
+        int s;
+        s = sqlite3_step(m_getAirportsStatement);
+        if (s == SQLITE_ROW)
+        {
+            AirportBasicInfo airport;
+            airport.code = getString(m_getAirportsStatement, 0);
+            airport.name = getString(m_getAirportsStatement, 1);
+            airports.push_back(airport);
+        }
+        else if (s == SQLITE_DONE)
+        {
+            break;
+        }
+    }
+    sqlite3_reset(m_getAirportsStatement);
+
+    m_airportInfoCache = airports;
+
+    return airports;
+}
+
+bool NavigraphData::findNavAid(const std::string& name, NavAid &waypoint, UFC::Coordinate near)
 {
     auto navAids = findNavAid(name);
     if (navAids.empty())
@@ -268,7 +290,7 @@ bool NavigraphData::findNavAid(std::string name, NavAid &waypoint, UFC::Coordina
     return true;
 }
 
-bool NavigraphData::findAirway(std::string ident)
+bool NavigraphData::findAirway(const std::string &ident)
 {
     if (!isOpen())
     {
@@ -290,7 +312,7 @@ bool NavigraphData::findAirway(std::string ident)
     return found;
 }
 
-bool NavigraphData::findAirway(std::string ident, uint64_t entryWaypointId, NavAid &navAid, bool forward)
+bool NavigraphData::findAirway(const std::string &ident, uint64_t entryWaypointId, NavAid &navAid, bool forward)
 {
     sqlite3_stmt* stmt;
     if (forward)
@@ -326,7 +348,7 @@ bool NavigraphData::findAirway(std::string ident, uint64_t entryWaypointId, NavA
     return found;
 }
 
-bool NavigraphData::expandAirway(std::string ident, uint64_t entryWaypointId, uint64_t exitWaypointId, vector<NavAid>& navAids)
+bool NavigraphData::expandAirway(const std::string& ident, uint64_t entryWaypointId, uint64_t exitWaypointId, vector<NavAid>& navAids)
 {
     printf("expandAirway: %s: %llu -> %llu\n", ident.c_str(), entryWaypointId, exitWaypointId);
 

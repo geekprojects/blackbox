@@ -11,7 +11,9 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include "airportwidget.h"
 #include "../blackbox.h"
+#include "ui/map/routemap.h"
 
 using namespace std;
 
@@ -29,19 +31,19 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     row++;
 
     grid->addWidget(new QLabel("<b>Registration:</b>"), row, 0);
-    grid->addWidget(m_registrationLabel = new QLabel("DAL39"), row, 1);
+    grid->addWidget(m_registrationLabel = new QLineEdit("DAL39"), row, 1);
     row++;
 
     grid->addWidget(new QLabel("<b>Call Sign:</b>"), row, 0);
-    grid->addWidget(m_callsignLabel = new QLabel("DAL39"), row, 1);
+    grid->addWidget(m_callsignLabel = new QLineEdit("DAL39"), row, 1);
     row++;
 
     grid->addWidget(new QLabel("<b>Origin:</b>"), row, 0);
-    grid->addWidget(m_originLabel = new QLabel("Gatwick"), row, 1);
+    grid->addWidget(m_originAirport = new AirportWidget(m_mainWindow->getBlackBoxUI()), row, 1);
     row++;
 
     grid->addWidget(new QLabel("<b>Destination:</b>"), row, 0);
-    grid->addWidget(m_destLabel = new QLabel("Miami"), row, 1);
+    grid->addWidget(m_destAirport = new AirportWidget(m_mainWindow->getBlackBoxUI()), row, 1);
     row++;
 
     QLabel* routeLabel;
@@ -55,7 +57,7 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     auto editBox = new QVBoxLayout();
     editBox->setSpacing(0);
     editBox->addWidget(m_routeEdit);
-    connect(m_routeEdit, &QPlainTextEdit::textChanged, this, &FlightDetailsWidget::routeChanged);
+    connect(m_routeEdit, &QPlainTextEdit::textChanged, this, &FlightDetailsWidget::routeEdited);
     editBox->addWidget(m_updateRouteButton = new QPushButton("Update"));
     m_updateRouteButton->show();
     grid->addLayout(editBox, row, 1);
@@ -63,6 +65,13 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
 
     detailsBoxLayout->addLayout(grid);
     row++;
+
+    connect(m_registrationLabel, &QLineEdit::editingFinished, this, &FlightDetailsWidget::updated);
+    connect(m_callsignLabel, &QLineEdit::editingFinished, this, &FlightDetailsWidget::updated);
+    connect(m_originAirport, &AirportWidget::airportChanged, this, &FlightDetailsWidget::updated);
+    connect(m_destAirport, &AirportWidget::airportChanged, this, &FlightDetailsWidget::updated);
+
+    connect(m_updateRouteButton, &QPushButton::clicked, this, &FlightDetailsWidget::routeUpdate);
 
     auto buttonRow = new QHBoxLayout();
     {
@@ -90,38 +99,14 @@ void FlightDetailsWidget::updateFlight(shared_ptr<Flight> flight)
     m_registrationLabel->setText(QString::fromStdString(flight->registration));
     m_callsignLabel->setText(QString::fromStdString(flight->flightId));
 
-    Airport origin;
-    string originStr;
-    bool found = m_mainWindow->getBlackBoxUI()->getNavigraph()->findAirport(flight->origin, origin);
-    if (found)
-    {
-        originStr = origin.name +  " (" + flight->origin + ")";
-    }
-    else
-    {
-        originStr = flight->origin;
-    }
-
-    Airport dest;
-    string destStr;
-    found = m_mainWindow->getBlackBoxUI()->getNavigraph()->findAirport(flight->destination, dest);
-    if (found)
-    {
-        destStr = dest.name + " (" + flight->destination + ")";
-    }
-    else
-    {
-        destStr = flight->destination;
-    }
-
-    m_originLabel->setText(QString::fromStdString(originStr));
-    m_destLabel->setText(QString::fromStdString(destStr));
+    m_originAirport->setAirport(flight->origin);
+    m_destAirport->setAirport(flight->destination);
     m_routeEdit->setPlainText(QString::fromStdString(flight->route));
 
     m_updateRouteButton->hide();
 }
 
-void FlightDetailsWidget::routeChanged()
+void FlightDetailsWidget::routeEdited()
 {
     auto route = m_routeEdit->toPlainText();
     printf("FlightDetailsWidget::routeChanged: route: %s\n", route.toStdString().c_str());
@@ -135,4 +120,21 @@ void FlightDetailsWidget::routeChanged()
     {
         m_updateRouteButton->hide();
     }
+}
+
+void FlightDetailsWidget::routeUpdate()
+{
+    auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+    flight->route = m_routeEdit->toPlainText().toStdString();
+
+    m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(*flight);
+
+    m_mainWindow->getMap()->refreshRoutes(flight->id);
+
+    m_updateRouteButton->hide();
+}
+
+void FlightDetailsWidget::updated()
+{
+    printf("FlightDetailsWidget::updated: here!\n");
 }

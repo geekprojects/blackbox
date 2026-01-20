@@ -7,10 +7,11 @@
 
 #include <sqlite3.h>
 #include <string>
+#include <map>
+
 #include <ufc/geoutils.h>
 
 #include "blackbox/database.h"
-#include "blackbox/logger.h"
 
 enum class NavAidType
 {
@@ -21,11 +22,14 @@ enum class NavAidType
     AIRWAY,
 };
 
-struct Airport
+struct AirportBasicInfo
 {
     std::string code;
     std::string name;
+};
 
+struct Airport : AirportBasicInfo
+{
     bool hasCoordinates = false;
     UFC::Coordinate coordinate;
 };
@@ -52,30 +56,34 @@ class NavigraphData : public Database
 
     sqlite3_stmt* m_findNavStatement = nullptr;
     sqlite3_stmt* m_findAirportStatement = nullptr;
+    sqlite3_stmt* m_getAirportsStatement = nullptr;
     sqlite3_stmt* m_findDepartureStatement = nullptr;
     sqlite3_stmt* m_findArrivalStatement = nullptr;
     sqlite3_stmt* m_findAirwayStatement = nullptr;
     sqlite3_stmt* m_findNextAirwayStatement = nullptr;
     sqlite3_stmt* m_findPreviousAirwayStatement = nullptr;
 
+    std::vector<AirportBasicInfo> m_airportInfoCache;
+    std::map<std::string, Airport> m_airportCache;
+
  public:
-    explicit NavigraphData(std::string dataPath);
+    explicit NavigraphData(const std::string& dataPath);
     ~NavigraphData() override;
 
     bool open();
-    void close() override;
 
-    bool findAirport(std::string code, Airport &airport);
+    bool findAirport(const std::string &code, Airport &airport);
+    std::vector<AirportBasicInfo> getAirports();
 
-    bool findNavAid(std::string name, NavAid &waypoint, UFC::Coordinate near);
-    std::vector<NavAid> findNavAid(std::string name);
+    bool findNavAid(const std::string& name, NavAid &waypoint, UFC::Coordinate near);
+    std::vector<NavAid> findNavAid(const std::string& name);
 
     bool findDeparture(std::string airportCode, std::string name);
-    bool findArrival(std::string airportCode, std::string name);
+    bool findArrival(const std::string &airportCode, const std::string &name);
 
-    bool findAirway(std::string ident);
-    bool findAirway(std::string ident, uint64_t entryWaypointId, NavAid &navAid, bool forward);
-    bool expandAirway(std::string ident, uint64_t entryWaypointId, uint64_t exitWaypointId, std::vector<NavAid> &navAids);
+    bool findAirway(const std::string &ident);
+    bool findAirway(const std::string &ident, uint64_t entryWaypointId, NavAid &navAid, bool forward);
+    bool expandAirway(const std::string& ident, uint64_t entryWaypointId, uint64_t exitWaypointId, std::vector<NavAid> &navAids);
 };
 
 #endif //BLACKBOX_NAVIGRAPH_H
