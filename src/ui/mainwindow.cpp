@@ -70,13 +70,13 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
     auto windowMenu = menu->addMenu("Window");
     windowMenu->addAction("Flights Manager", [this] { m_blackBoxUI->openFlightsWindow(); });
 
-    setCentralWidget(new QWidget());
+    setCentralWidget(new QWidget(this));
 
-    auto mainLayout = new QVBoxLayout();
+    auto mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     centralWidget()->setLayout(mainLayout);
 
-    m_map = new FlightMap(m_blackBoxUI);
+    m_map = new FlightMap(this, m_blackBoxUI);
     mainLayout->addWidget(m_map);
 
     buildFlightSelectionWidget();

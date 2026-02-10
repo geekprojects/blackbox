@@ -15,9 +15,6 @@
 #include <QNetworkDiskCache>
 #include <QStandardPaths>
 
-#include "flightswindow.h"
-#include "map/route.h"
-
 using namespace std;
 
 BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
@@ -93,18 +90,15 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
     m_mainWindow->init();
 }
 
+BlackBoxUI::~BlackBoxUI()
+{
+    printf("BlackBoxUI::~BlackBoxUI: here!\n");
+    delete m_mainWindow;
+    delete m_flightsWindow;
+}
+
 int BlackBoxUI::run()
 {
-    /*
-    auto flight = make_shared<Flight>();
-    flight->origin = "SBGL";
-    flight->destination = "SAEZ";
-    flight->route = "SBGL/10 TIVR1A BITAK UN857 NELOX UM534 DADUT UN741 PAPIX DCT SAEZ/29";
-
-    Route route(m_navigraph, flight);
-
-    route.parseRoute();
-*/
     m_mainWindow->show();
     return exec();
 }
@@ -192,7 +186,6 @@ void BlackBoxUI::setState(const State &state)
 
 void BlackBoxUI::setupCachedNetworkAccessManager()
 {
-    QDir("cacheDir");
     auto cache = new QNetworkDiskCache(this);
 
     auto cacheLocations = QStandardPaths::standardLocations(QStandardPaths::CacheLocation);
@@ -200,7 +193,7 @@ void BlackBoxUI::setupCachedNetworkAccessManager()
     printf("Setting map cache dir: %s\n", cacheDir.toStdString().c_str());
     cache->setCacheDirectory(cacheDir);
 
-    cache->setMaximumCacheSize(100 * 1024 * 1024);
+    cache->setMaximumCacheSize(1024 * 1024 * 1024); // 1GB
     auto manager = new QNetworkAccessManager(this);
     manager->setCache(cache);
     QGV::setNetworkManager(manager);

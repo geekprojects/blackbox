@@ -14,7 +14,8 @@ class AirportTableModel : public QStandardItemModel
     BlackBoxUI* m_blackBoxUI;
 
  public:
-     AirportTableModel(BlackBoxUI* blackBoxUI);
+     explicit AirportTableModel(BlackBoxUI* blackBoxUI);
+    ~AirportTableModel() override = default;
 
 };
 

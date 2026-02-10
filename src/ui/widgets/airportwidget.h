@@ -24,7 +24,8 @@ protected:
     void updateAirport(const std::string& code);
 
  public:
-    AirportWidget(BlackBoxUI* blackBoxUI);
+    explicit AirportWidget(BlackBoxUI* blackBoxUI);
+    ~AirportWidget() override = default;
 
     void updateAirportDisplay();
 

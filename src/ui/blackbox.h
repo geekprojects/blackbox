@@ -31,7 +31,7 @@ class BlackBoxUI : public QApplication
 
  public:
     BlackBoxUI(int argc, char** argv);
-    ~BlackBoxUI() override = default;
+    ~BlackBoxUI() override;
 
     int run();
 
@@ -48,7 +48,7 @@ class BlackBoxUI : public QApplication
         }
     }
 
-    std::shared_ptr<Flight> getFlight(uint64_t flightId) const
+    [[nodiscard]] std::shared_ptr<Flight> getFlight(uint64_t flightId) const
     {
         auto it = m_flightIndex.find(flightId);
         if (it != m_flightIndex.end())
@@ -57,7 +57,7 @@ class BlackBoxUI : public QApplication
         }
         return nullptr;
     }
-    std::vector<std::shared_ptr<Flight>> getFlights() const { return m_flights; }
+    [[nodiscard]] std::vector<std::shared_ptr<Flight>> getFlights() const { return m_flights; }
     void deleteFlight(std::shared_ptr<Flight> flight);
 
     void setState(const State& state);

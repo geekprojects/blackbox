@@ -25,5 +25,4 @@ class LiveIndicator : public QWidget
     }
 };
 
-
 #endif //BLACKBOX_LIVEINDICATOR_H

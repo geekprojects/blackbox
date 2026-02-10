@@ -24,7 +24,7 @@ AirportWidget::AirportWidget(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     completer->setModel(airportModel);
     completer->setFilterMode(Qt::MatchContains);
 
-    QTreeView *treeView = new QTreeView(this);
+    QTreeView* treeView = new QTreeView(this);
     completer->setPopup(treeView);
     treeView->setRootIsDecorated(false);
     treeView->setAlternatingRowColors(true);

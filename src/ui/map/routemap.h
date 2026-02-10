@@ -51,7 +51,7 @@ class FlightMap : public QGVMap
     QImage* m_screenshotIcon;
 
 public:
-    explicit FlightMap(BlackBoxUI* blackBoxUI);
+    FlightMap(QWidget* parent, BlackBoxUI* blackBoxUI);
     ~FlightMap() override;
 
     void setMode(MapMode mode);

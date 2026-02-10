@@ -17,8 +17,8 @@
 using namespace std;
 
 Route::Route(shared_ptr<NavigraphData> navigraphData, FlightMap* map, shared_ptr<Flight> flightId) :
-    m_navigraphData(navigraphData),
-    PolyLine(map, flightId)
+    PolyLine(map, flightId),
+    m_navigraphData(navigraphData)
 {
 }
 

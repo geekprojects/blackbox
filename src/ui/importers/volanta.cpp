@@ -254,6 +254,7 @@ void VolantaImporter::importFlight(const filesystem::directory_entry& entry)
 
 
     // Now sanitise the states
+    /*
     State prev;
     for (auto it = states.begin(); it != states.end(); ++it)
     {
@@ -266,6 +267,7 @@ void VolantaImporter::importFlight(const filesystem::directory_entry& entry)
 
         prev = state;
     }
+    */
 
     for (const auto& state : states)
     {
