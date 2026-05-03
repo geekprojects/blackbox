@@ -81,7 +81,7 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     connect(m_callsignLabel, &QLineEdit::editingFinished, this, [this]()
     {
         auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
-        if (flight == nullptr)
+        if (flight != nullptr)
         {
             flight->flightId = m_callsignLabel->text().toStdString();
             m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(
@@ -94,7 +94,7 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     connect(m_originAirport, &AirportWidget::airportChanged, this, [this]()
     {
         auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
-        if (flight == nullptr)
+        if (flight != nullptr)
         {
             flight->origin = m_originAirport->getAirport();
             printf("FlightDetailsWidget::airportChanged: origin: %s\n", flight->origin.c_str());
@@ -107,7 +107,7 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     connect(m_destAirport, &AirportWidget::airportChanged, this, [this]()
     {
         auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
-        if (flight == nullptr)
+        if (flight != nullptr)
         {
             flight->destination = m_destAirport->getAirport();
             printf("FlightDetailsWidget::airportChanged: destination: %s\n", flight->destination.c_str());
