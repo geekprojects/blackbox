@@ -5,7 +5,7 @@
 #ifndef BLACKBOX_UTILS_H
 #define BLACKBOX_UTILS_H
 
-#include <ufc/geoutils.h>
+#include <ufc/utils/geoutils.h>
 
 #ifdef PLUGIN
 #include "XPLMDataAccess.h"
@@ -20,7 +20,7 @@ class Utils
     static double distance(UFC::Coordinate c1, UFC::Coordinate c2);
     static double angleFromCoordinate(UFC::Coordinate coord1, UFC::Coordinate coord2);
 
-    static std::vector<std::string> splitString(std::string line);
+    static std::vector<std::string> splitString(std::string line, char delimiter = ' ');
 
     static void ltrim(std::string &s)
     {

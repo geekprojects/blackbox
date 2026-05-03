@@ -55,7 +55,7 @@ double Utils::angleFromCoordinate(Coordinate coord1, Coordinate coord2)
     return atan2(y, x);
 }
 
-vector<string> Utils::splitString(string line)
+vector<string> Utils::splitString(string line, char delimiter)
 {
     vector<string> parts;
 
@@ -63,7 +63,7 @@ vector<string> Utils::splitString(string line)
 
     while (!line.empty())
     {
-        size_t pos = line.find(' ');
+        size_t pos = line.find(delimiter);
         if (pos == string::npos)
         {
             pos = line.find('\t');

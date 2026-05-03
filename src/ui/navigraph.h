@@ -9,7 +9,7 @@
 #include <string>
 #include <map>
 
-#include <ufc/geoutils.h>
+#include <ufc/utils/geoutils.h>
 
 #include "blackbox/database.h"
 

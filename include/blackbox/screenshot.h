@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include <ufc/geoutils.h>
+#include <ufc/utils/geoutils.h>
 
 struct Screenshot
 {

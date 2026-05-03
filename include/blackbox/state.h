@@ -5,7 +5,7 @@
 #ifndef BLACKBOX_STATE_H
 #define BLACKBOX_STATE_H
 
-#include <ufc/geoutils.h>
+#include <ufc/utils/geoutils.h>
 
 enum class FlightPhase
 {

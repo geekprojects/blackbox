@@ -5,7 +5,7 @@
 #ifndef BLACKBOX_SCREENSHOTICON_H
 #define BLACKBOX_SCREENSHOTICON_H
 #include <QGeoView/Raster/QGVIcon.h>
-#include <ufc/geoutils.h>
+#include <ufc/utils/geoutils.h>
 
 
 class ScreenshotIcon : public QGVIcon
