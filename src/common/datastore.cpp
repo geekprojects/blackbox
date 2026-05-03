@@ -10,12 +10,7 @@
 using namespace std;
 using namespace BlackBox;
 
-
 DataStore::DataStore() : Database("DataStore")
-{
-}
-
-DataStore::~DataStore()
 {
 }
 
@@ -28,20 +23,17 @@ bool DataStore::init(const string &dbPath)
 
     string sql;
     char* err;
+    int res;
 
     // Make sure Write Ahead Logging is enabled
-    sqlite3_stmt *stmt;
-    if (!prepare("PRAGMA journal_mode=WAL", &stmt))
+    res = sqlite3_exec(getDB(), "PRAGMA journal_mode=WAL", nullptr, nullptr, &err);
+    if (res != SQLITE_OK)
     {
+        log(ERROR, "init: Failed to set journal mode: %s", err);
         return false;
     }
 
-    int res = sqlite3_step(stmt);
-    if (res == SQLITE_ROW)
-    {
-        string mode = getString(stmt, 0);
-        log(DEBUG, "init: journal mode: %s", mode.c_str());
-    }
+
     sql =
         "CREATE TABLE IF NOT EXISTS flights ("
         "    id INTEGER PRIMARY KEY,"
@@ -223,7 +215,7 @@ uint64_t DataStore::createFlight(Flight& flight)
     sqlite3_bind_text(stmt, 3, flight.icaoType.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 4, flight.registration.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 5, flight.flightId.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 6, flight.startTime);
+    sqlite3_bind_int64(stmt, 6, static_cast<int64_t>(flight.startTime));
     sqlite3_bind_text(stmt, 7, flight.route.c_str(), -1, SQLITE_STATIC);
 
     scoped_lock lock(m_insertMutex);
@@ -257,7 +249,7 @@ void DataStore::updateFlight(const Flight& flight)
     sqlite3_bind_text(stmt, 4, flight.registration.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 5, flight.flightId.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 6, flight.route.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 7, flight.id);
+    sqlite3_bind_int64(stmt, 7, static_cast<int64_t>(flight.id));
 
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE)
@@ -267,6 +259,38 @@ void DataStore::updateFlight(const Flight& flight)
     sqlite3_finalize(stmt);
 }
 
+void DataStore::updateFlight(const Flight &flight, const std::string &field, const std::string &value)
+{
+    string sql = "UPDATE flights SET " + field + " = ? WHERE id = ?";
+
+    int res;
+    sqlite3_stmt *stmt;
+    auto it = m_statementCache.find(sql);
+    if (it != m_statementCache.end())
+    {
+        stmt = it->second;
+    }
+    else
+    {
+        res = sqlite3_prepare_v2(getDB(), sql.c_str(), -1, &stmt, nullptr);
+        if (res != SQLITE_OK)
+        {
+            log(ERROR, "updateFlight: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
+            return;
+        }
+        m_statementCache[sql] = stmt;
+    }
+
+    sqlite3_bind_text(stmt, 1, value.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 2, static_cast<int64_t>(flight.id));
+
+    res = sqlite3_step(stmt);
+    if (res != SQLITE_DONE)
+    {
+        log(ERROR, "updateFlight: Failed to update flight: %d: %s", res, sqlite3_errmsg(getDB()));
+    }
+    sqlite3_reset(stmt);
+}
 
 std::vector<Flight> DataStore::fetchFlights()
 {
@@ -284,7 +308,7 @@ std::vector<Flight> DataStore::fetchFlights()
         "  ORDER BY start_time ASC";
     vector<Flight> flights;
     sqlite3_stmt* stmt;
-    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), sql.length(), &stmt, nullptr);
+    int res = sqlite3_prepare_v2(getDB(), sql.c_str(), static_cast<int>(sql.length()), &stmt, nullptr);
     if (res != SQLITE_OK)
     {
         log(ERROR, "fetchFlights: Failed to prepare statement: %d: %s", res, sqlite3_errmsg(getDB()));
@@ -318,8 +342,8 @@ std::vector<Flight> DataStore::fetchFlights()
 
 uint64_t DataStore::writeState(uint64_t flightId, const State &state)
 {
-    string phaseString = state.getPhaseString();
-    string eventString = state.getEventString();
+    const string phaseString = state.getPhaseString();
+    const string eventString = state.getEventString();
 
     int col = 1;
     sqlite3_bind_int64(m_writeStatusStatement, col++, flightId);
@@ -344,7 +368,8 @@ uint64_t DataStore::writeState(uint64_t flightId, const State &state)
     int res = sqlite3_step(m_writeStatusStatement);
     if (res != SQLITE_DONE)
     {
-        log(ERROR, "write: Failed to insert state: %d: %s", res, sqlite3_errmsg(getDB()));
+        log(ERROR, "writeState: Failed to insert state: %d: %s", res, sqlite3_errmsg(getDB()));
+        sqlite3_reset(m_writeStatusStatement);
         return 0;
     }
     auto rowid = sqlite3_last_insert_rowid(getDB());
@@ -357,8 +382,9 @@ std::vector<State> DataStore::fetchUpdates(uint64_t flightId, uint64_t sinceTime
 {
     vector<State> states;
 
-    sqlite3_bind_int64(m_fetchStatusStatement, 1, flightId);
-    sqlite3_bind_int64(m_fetchStatusStatement, 2, sinceTimestamp);
+    sqlite3_bind_int64(m_fetchStatusStatement, 1, static_cast<int64_t>(flightId));
+    sqlite3_bind_int64(m_fetchStatusStatement, 2, static_cast<int64_t>(sinceTimestamp));
+
     while (true)
     {
         int s;
@@ -393,6 +419,10 @@ std::vector<State> DataStore::fetchUpdates(uint64_t flightId, uint64_t sinceTime
         else if (s == SQLITE_DONE)
         {
             break;
+        }
+        else
+        {
+            log(ERROR, "fetchUpdates: Failed to get states: %d: %s", s, sqlite3_errmsg(getDB()));
         }
     }
 

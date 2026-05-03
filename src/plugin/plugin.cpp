@@ -198,6 +198,10 @@ void BlackBoxPlugin::sendEvent(float elapsedSim)
     m_state.simTime += static_cast<int>(timeOfDay);
     m_state.simTime *= 1000;
 
+    m_latestIcaoType = getString(m_aircraftICAODataRef);
+    m_latestRegistration = getString(m_aircraftTailNumberDataRef);
+    m_latestFlightId = getString(m_flightIDDataRef);
+
     Event event;
     event.flightId = m_currentFlight.id;
     event.state = m_state;
@@ -257,39 +261,23 @@ void BlackBoxPlugin::createFlight()
 
 void BlackBoxPlugin::updateFlight()
 {
-    string icaoType = getString(m_aircraftICAODataRef);
-    string registration = getString(m_aircraftTailNumberDataRef);
-    string flightId = getString(m_flightIDDataRef);
-
-    bool update = false;
-    if (m_currentFlight.icaoType != icaoType)
+    if (m_currentFlight.icaoType != m_latestIcaoType)
     {
-        log(WARN, "updateFlight: Aircraft type has changed! %s -> %s", m_currentFlight.icaoType.c_str(), icaoType.c_str());
-        m_currentFlight.icaoType = icaoType;
-        update = true;
+        log(WARN, "updateFlight: Aircraft type has changed! %s -> %s", m_currentFlight.icaoType.c_str(), m_latestIcaoType.c_str());
+        m_currentFlight.icaoType = m_latestIcaoType;
+        m_datastore.updateFlight(m_currentFlight, "aircraft_type", m_latestIcaoType);
     }
-    if (m_currentFlight.flightId != flightId && !flightId.empty())
+    if (m_currentFlight.flightId != m_latestFlightId && !m_latestFlightId.empty())
     {
-        log(DEBUG, "updateFlight: flightId has changed! %s -> %s", m_currentFlight.flightId.c_str(), flightId.c_str());
-        update = true;
+        log(DEBUG, "updateFlight: flightId has changed! %s -> %s", m_currentFlight.flightId.c_str(), m_latestFlightId.c_str());
+        m_currentFlight.flightId = m_latestFlightId;
+        m_datastore.updateFlight(m_currentFlight, "flight_code", m_latestFlightId);
     }
-    if (m_currentFlight.registration != registration && !registration.empty())
+    if (m_currentFlight.registration != m_latestRegistration && !m_latestRegistration.empty())
     {
-        log(DEBUG, "updateFlight: Aircraft registration has changed! %s -> %s", m_currentFlight.registration.c_str(), flightId.c_str());
-        update = true;
-    }
-    if (update)
-    {
-        m_currentFlight.icaoType = icaoType;
-        if (!flightId.empty())
-        {
-            m_currentFlight.flightId = flightId;
-        }
-        if (!registration.empty())
-        {
-            m_currentFlight.registration = registration;
-        }
-        m_datastore.updateFlight(m_currentFlight);
+        log(DEBUG, "updateFlight: Aircraft registration has changed! %s -> %s", m_currentFlight.registration.c_str(), m_latestRegistration.c_str());
+        m_currentFlight.registration = m_latestRegistration;
+        m_datastore.updateFlight(m_currentFlight, "aircraft_registration", m_latestRegistration);
     }
 }
 
@@ -479,7 +467,7 @@ float BlackBoxPlugin::update(float elapsedMe, float elapsedSim, int counter)
 
                 string airport = findNearestAirport(m_state.position.latitude, m_state.position.longitude);
                 m_currentFlight.destination = airport;
-                m_datastore.updateFlight(m_currentFlight);
+                m_datastore.updateFlight(m_currentFlight, "destination", airport);
 
                 setMessage(
                     "APPROACH: Landing Started: airport=%s, FPM=%0.2f (average=%0.2f), G-Force=%0.2f, pitch=%0.2f",

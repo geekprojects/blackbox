@@ -9,6 +9,8 @@
 #include "state.h"
 #include "screenshot.h"
 
+#include <map>
+
 struct Flight
 {
     uint64_t id = 0;
@@ -38,19 +40,21 @@ class DataStore : public Database
     sqlite3_stmt* m_moveStatusStatement = nullptr;
     sqlite3_stmt* m_insertScreenshotStatement = nullptr;
     sqlite3_stmt* m_fetchScreenshotStatement = nullptr;
-    sqlite3_stmt* m_deleteScreenshotStatement = nullptr;
+
+    std::map<std::string, sqlite3_stmt*> m_statementCache;
 
     std::mutex m_insertMutex;
 
 
 public:
     DataStore();
-    ~DataStore() override;
+    ~DataStore() override = default;
 
     bool init(const std::string &dbPath);
 
     uint64_t createFlight(Flight &flight);
     void updateFlight(const Flight &flight);
+    void updateFlight(const Flight &flight, const std::string &field, const std::string &value);
 
     std::vector<Flight> fetchFlights();
 

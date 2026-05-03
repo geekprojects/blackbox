@@ -90,6 +90,7 @@ class BlackBoxPlugin : public BlackBox::Logger
     std::filesystem::path m_xplaneDir;
     DataStore m_datastore;
     Flight m_currentFlight;
+    Flight m_selectedFlight;
 
     std::shared_ptr<Writer> m_writer;
     float m_lastSendTime = 0;
@@ -132,6 +133,9 @@ class BlackBoxPlugin : public BlackBox::Logger
     int m_showWindowMenu = 0;
 
     std::unique_ptr<StatusWindow> m_statusWindow = nullptr;
+    std::string m_latestIcaoType;
+    std::string m_latestRegistration;
+    std::string m_latestFlightId;
 
     static float updateCallback(float elapsedMe, float elapsedSim, int counter, void * refcon);
 
