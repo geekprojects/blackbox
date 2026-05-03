@@ -25,7 +25,9 @@ class BlackBoxUI : public QApplication
 
     std::vector<std::shared_ptr<Flight>> m_flights;
     std::map<uint64_t, std::shared_ptr<Flight>> m_flightIndex;
-    std::shared_ptr<Flight> m_currentFlight;
+
+    std::vector<std::shared_ptr<Flight>> m_currentFlights;
+    std::shared_ptr<Flight> m_selectedFlight;
 
     void setupCachedNetworkAccessManager();
 
@@ -38,14 +40,19 @@ class BlackBoxUI : public QApplication
     void openFlightsWindow() const;
 
     void updateFlights();
-    std::shared_ptr<Flight> getCurrentFlight() { return m_currentFlight; }
-    void setCurrentFlightId(uint64_t flightId)
+
+    const std::vector<std::shared_ptr<Flight>> getCurrentFlights() { return m_currentFlights; }
+    const std::shared_ptr<Flight> getCurrentFlight()
     {
-        auto it = m_flightIndex.find(flightId);
-        if (it != m_flightIndex.end())
+        if (m_currentFlights.size() == 1)
         {
-            m_currentFlight = it->second;
+            return m_currentFlights[0];
         }
+        return nullptr;
+    }
+    void setCurrentFlights(std::vector<std::shared_ptr<Flight>> flights)
+    {
+        m_currentFlights = flights;
     }
 
     [[nodiscard]] std::shared_ptr<Flight> getFlight(uint64_t flightId) const

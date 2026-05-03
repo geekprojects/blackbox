@@ -70,13 +70,13 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
     auto windowMenu = menu->addMenu("Window");
     windowMenu->addAction("Flights Manager", [this] { m_blackBoxUI->openFlightsWindow(); });
 
-    setCentralWidget(new QWidget(this));
+    setCentralWidget(new QWidget());
 
-    auto mainLayout = new QVBoxLayout(this);
+    auto mainLayout = new QVBoxLayout();
     mainLayout->setContentsMargins(0, 0, 0, 0);
     centralWidget()->setLayout(mainLayout);
 
-    m_map = new FlightMap(this, m_blackBoxUI);
+    m_map = new FlightMap(m_blackBoxUI);
     mainLayout->addWidget(m_map);
 
     buildFlightSelectionWidget();
@@ -87,7 +87,7 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
         if (index >= 0)
         {
             auto id = m_flightComboBox->itemData(index).toULongLong();
-            selectFlight(id);
+            showFlight(m_blackBoxUI->getFlight(id));
         }
     });
 
@@ -275,10 +275,34 @@ void MainWindow::updateFlights()
 
     int idx = 0;
     int selectedIndex = 0;
-    auto currentFlightId = m_blackBoxUI->getCurrentFlight();
-    for (auto flight : flights)
+    auto currentFlights = m_blackBoxUI->getCurrentFlights();
+
+    auto size = flights.size();
+    auto start = 0;
+    if (size > 20)
     {
-        if (flight->stateCount == 0 && flight->id != currentFlightId->id)
+        size = 20;
+        start = flights.size() - 20;
+    }
+
+    auto startIt = flights.begin() + start;
+    auto endIt = flights.end();
+    vector<shared_ptr<Flight>> result(size);
+    copy(startIt, endIt, result.begin());
+
+    for (auto it = result.rbegin(); it != result.rend(); ++it)
+    {
+        auto flight = *it;
+        bool flightInCurrentFlights = false;
+        for (auto currentFlight : currentFlights)
+        {
+            if (currentFlight->id == flight->id)
+            {
+                flightInCurrentFlights = true;
+                break;
+            }
+        }
+        if (flight->stateCount == 0 && !flightInCurrentFlights)
         {
             printf("updateFlights: Skipping Flight %lld\n", flight->id);
             continue;
@@ -327,11 +351,13 @@ void MainWindow::updateFlights()
         }
         m_flightComboBox->addItem(QString(title.c_str()), QVariant::fromValue(flight->id));
 
+        /*
         if (flight == currentFlightId)
         {
             printf("updateFlights: Found current Flight: %lld -> %d\n", flight->id, idx);
             selectedIndex = idx;
         }
+        */
 
         idx++;
     }
@@ -340,13 +366,13 @@ void MainWindow::updateFlights()
 
 void MainWindow::deleteCurrentFlight()
 {
-    m_blackBoxUI->deleteFlight(m_blackBoxUI->getCurrentFlight());
+    //m_blackBoxUI->deleteFlight(m_blackBoxUI->getCurrentFlight());
 }
 
-void MainWindow::selectFlight(uint64_t flightId)
+void MainWindow::showFlight(std::shared_ptr<Flight> flight)
 {
-    m_blackBoxUI->setCurrentFlightId(flightId);
-    m_map->showFlight(flightId);
+    m_blackBoxUI->setCurrentFlights({flight});
+    m_map->showFlight(flight->id);
 
     m_detailsBox->updateFlight(m_blackBoxUI->getCurrentFlight());
 }

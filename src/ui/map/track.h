@@ -27,6 +27,8 @@ struct TrackPoint
 
 class Track : public PolyLine<TrackPoint>
 {
+    static std::vector<std::pair<float, QColor>> m_gradient;
+
     float m_maxAltitude = 0;
 
     State m_lastState;

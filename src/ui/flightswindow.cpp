@@ -5,6 +5,7 @@
 #include "flightswindow.h"
 
 #include <qdatetime.h>
+#include <QHeaderView>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -30,9 +31,11 @@ FlightsWindow::FlightsWindow(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
         auto flight = m_flightIndex.at(row);
         printf(" -> flight id=%llu\n", flight->id);
 
-        m_blackBoxUI->getMainWindow()->selectFlight(flight->id);
+        m_blackBoxUI->getMainWindow()->showFlight(flight);
     });
     mainLayout->addWidget(m_tableWidget);
+
+    m_tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
     auto buttons = new QHBoxLayout();
     mainLayout->addLayout(buttons);
@@ -92,8 +95,10 @@ void FlightsWindow::updateFlights()
         row++;
     }
     m_tableWidget->resizeColumnsToContents();
+    m_tableWidget->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+    m_tableWidget->adjustSize();
 
-
+    adjustSize();
 }
 
 void FlightsWindow::mergeSelected()

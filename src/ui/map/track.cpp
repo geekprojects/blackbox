@@ -16,6 +16,20 @@
 
 using namespace std;
 
+std::vector<std::pair<float, QColor>> Track::m_gradient =
+{
+    {0.000, QColor::fromHslF(23.125 / 360.0,0.88,0.51041666666666664)},
+    {0.066, QColor::fromHslF(26.25 / 360.0,0.88,0.52083333333333336)},
+    {0.126, QColor::fromHslF(32.5 / 360.0,0.88,0.53875)},
+    {0.190, QColor::fromHslF(43 / 360.0,0.88,0.515)},
+    {0.253, QColor::fromHslF(54 / 360.0,0.88,0.448)},
+    {0.316, QColor::fromHslF(72 / 360.0,0.88,0.418)},
+    {0.380, QColor::fromHslF(112.5 / 360.0,0.88,0.41)},
+    {0.590, QColor::fromHslF(189.6551724137931 / 360.0,0.88,0.43862068965517246)},
+    {0.790, QColor::fromHslF(244.82758620689657 / 360.0,0.88,0.5703448275862068)},
+    {1.000, QColor::fromHslF(300 / 360.0,0.88,0.43)},
+};
+
 QColor interpolate(QColor start,QColor end,double ratio)
 {
     return QColor::fromRgb(
@@ -90,7 +104,7 @@ TrackPoint Track::getLastPosition() const
 
 void Track::projPaint(QPainter* painter)
 {
-    if (m_points.empty())
+    if (m_points.size() < 2)
     {
         // Nothing to show
         return;
@@ -102,35 +116,46 @@ void Track::projPaint(QPainter* painter)
 
     auto rect = m_map->geoView()->getCamera().projRect();
 
-    QColor colour1;
-    QColor colour2;
-    if (m_map->getLineType() == LineType::G_FORCE)
+    TrackPoint previous = m_points.front();
+    for (auto it = m_points.begin() + 1; it != m_points.end(); ++it)
     {
-        colour1 =  QColor(0, 255, 0);
-        colour2 =  QColor(255, 0, 0);
-    }
-    else
-    {
-        colour1 =  QColor(0, 255, 0);
-        colour2 =  QColor(82, 78, 221);
-    }
+        QPointF const& p1 = previous.projected;
+        QPointF const& p2 = it->projected;
 
-    TrackPoint previous;
-    for (auto it = m_points.begin(); it != m_points.end(); ++it)
-    {
-        if (it != m_points.begin())
+        QRectF const pr(p1, p2);
+        if (rect.intersects(pr))
         {
-            QPointF const& p1 = previous.projected;
-            QPointF const& p2 = it->projected;
-
-            QRectF const pr(p1, p2);
-            if (rect.intersects(pr))
+            float altitude = (it->altitude + previous.altitude) / 2.0f;
+            float r = altitude / 40000;
+            if (r < 0)
             {
-                float altitude = (it->altitude + previous.altitude) / 2.0f;
-                pen.setColor(interpolate(colour2, colour1, altitude / m_maxAltitude));
-                painter->setPen(pen);
-                painter->drawLine(p1, p2);
+                r = 0;
             }
+            if (r > 1.0)
+            {
+                r = 1.0;
+            }
+
+            QColor colour1 = m_gradient.front().second;
+            QColor colour2;
+            float previousStart = 0;
+            float cr = 0.0;
+            for (auto const& colour : m_gradient)
+            {
+                if (r < colour.first)
+                {
+                    colour2 = colour.second;
+                    float range = colour.first - previousStart;
+                    cr = (r - previousStart) / range;
+                    break;
+                }
+                previousStart = colour.first;
+                colour1 = colour.second;
+            }
+
+            pen.setColor(interpolate(colour2, colour1, cr));
+            painter->setPen(pen);
+            painter->drawLine(p1, p2);
         }
         previous = *it;
     }
@@ -196,13 +221,15 @@ void Track::updateRoute()
     if (m_lastTimestamp > 0 && !m_map->isVisible())
     {
         // updateRoute: Not visible! Not updating!
+        printf("updateRoute: Not visible!\n");
         return;
     }
 
     BlackBoxUI* ui = m_map->getBlackBoxUI();
-    auto stateUpdates = ui->getDataStore().fetchUpdates(m_flight->id, m_lastTimestamp);
+    const auto stateUpdates = ui->getDataStore().fetchUpdates(m_flight->id, m_lastTimestamp);
     if (stateUpdates.empty())
     {
+        printf("updateRoute: No updates found since %lld\n", m_lastTimestamp);
         return;
     }
 
@@ -361,7 +388,7 @@ void Track::showRoute()
 
         QGV::GeoRect viewRect(top, left, bottom, right);
 
-        m_map->flyTo(QGVCameraActions(m_map).scaleTo(viewRect));
+        m_map->cameraTo(QGVCameraActions(m_map).scaleTo(viewRect));
     });
 }
 

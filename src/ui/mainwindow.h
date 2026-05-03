@@ -54,7 +54,7 @@ public:
 
     void closeEvent(QCloseEvent* event) override;
 
-    void selectFlight(uint64_t flightId);
+    void showFlight(std::shared_ptr<Flight> flight);
     void updateFlights();
 
     void buildFlightSelectionWidget();

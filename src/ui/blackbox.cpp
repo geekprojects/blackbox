@@ -137,25 +137,20 @@ void BlackBoxUI::updateFlights()
         flight->stateCount = m_dataStore.countUpdates(flight->id);
     }
 
-    bool foundCurrentFlight = false;
-    if (m_currentFlight != nullptr)
+    if (m_currentFlights.empty())
     {
-        const auto it = m_flightIndex.find(m_currentFlight->id);
-        foundCurrentFlight = it != m_flightIndex.end();
+        vector<shared_ptr<Flight>> currentFlights;
+        for (auto flight : m_currentFlights)
+        {
+            const auto it = m_flightIndex.find(flight->id);
+            if (it != m_flightIndex.end())
+            {
+                currentFlights.push_back(it->second);
+            }
+        }
+        m_currentFlights = currentFlights;
     }
 
-    if (!foundCurrentFlight)
-    {
-        if (!m_flights.empty())
-        {
-            m_currentFlight = lastFlight;
-            printf("Updating current flight: %lld\n", m_currentFlight->id);
-        }
-        else
-        {
-            m_currentFlight = nullptr;
-        }
-    }
     m_mainWindow->updateFlights();
     m_flightsWindow->updateFlights();
 }

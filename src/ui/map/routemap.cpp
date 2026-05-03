@@ -21,9 +21,9 @@ FlightMap::FlightMap(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     // Background layer
     auto backgroundLayer = new QGVLayerOSM();
     m_backgroundLayer = backgroundLayer;
-    //backgroundLayer->setUrl("https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}");
+    backgroundLayer->setUrl("https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}");
     //backgroundLayer->setUrl("https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}");
-    backgroundLayer->setUrl("https://tiles.openfreemap.org/natural_earth/ne2sr/${z}/${x}/${y}.png");
+    //backgroundLayer->setUrl("https://tiles.openfreemap.org/natural_earth/ne2sr/${z}/${x}/${y}.png");
     //backgroundLayer->setUrl("http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}");
     //backgroundLayer->setUrl("http://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png");
     //backgroundLayer->setUrl("https://a.tile.opentopomap.org/${z}/${x}/${y}.png");

@@ -30,6 +30,7 @@ protected:
     void updateAirportDisplay();
 
     void setAirport(const std::string& code);
+    [[nodiscard]] std::string getAirport() const { return m_airportCode; }
 
     Q_SIGNALS:
         void airportChanged(const std::string& code);

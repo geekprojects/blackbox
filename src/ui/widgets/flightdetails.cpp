@@ -66,10 +66,57 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
     detailsBoxLayout->addLayout(grid);
     row++;
 
-    connect(m_registrationLabel, &QLineEdit::editingFinished, this, &FlightDetailsWidget::updated);
-    connect(m_callsignLabel, &QLineEdit::editingFinished, this, &FlightDetailsWidget::updated);
-    connect(m_originAirport, &AirportWidget::airportChanged, this, &FlightDetailsWidget::updated);
-    connect(m_destAirport, &AirportWidget::airportChanged, this, &FlightDetailsWidget::updated);
+    connect(m_registrationLabel, &QLineEdit::editingFinished, this, [this]()
+    {
+        auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+        if (flight != nullptr)
+        {
+            flight->registration = m_registrationLabel->text().toStdString();
+            m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(
+                *flight,
+                "aircraft_registration",
+                flight->registration);
+        }
+    });
+    connect(m_callsignLabel, &QLineEdit::editingFinished, this, [this]()
+    {
+        auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+        if (flight == nullptr)
+        {
+            flight->flightId = m_callsignLabel->text().toStdString();
+            m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(
+                *flight,
+                "flight_code",
+                flight->flightId);
+        }
+    });
+
+    connect(m_originAirport, &AirportWidget::airportChanged, this, [this]()
+    {
+        auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+        if (flight == nullptr)
+        {
+            flight->origin = m_originAirport->getAirport();
+            printf("FlightDetailsWidget::airportChanged: origin: %s\n", flight->origin.c_str());
+            m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(
+                *flight,
+                "origin",
+                flight->origin);
+        }
+    });
+    connect(m_destAirport, &AirportWidget::airportChanged, this, [this]()
+    {
+        auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+        if (flight == nullptr)
+        {
+            flight->destination = m_destAirport->getAirport();
+            printf("FlightDetailsWidget::airportChanged: destination: %s\n", flight->destination.c_str());
+            m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(
+                *flight,
+                "destination",
+                flight->destination);
+        }
+    });
 
     connect(m_updateRouteButton, &QPushButton::clicked, this, &FlightDetailsWidget::routeUpdate);
 
@@ -127,7 +174,7 @@ void FlightDetailsWidget::routeUpdate()
     auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
     flight->route = m_routeEdit->toPlainText().toStdString();
 
-    m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(*flight);
+    m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(*flight, "route", flight->route);
 
     m_mainWindow->getMap()->refreshRoutes(flight->id);
 
