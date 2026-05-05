@@ -87,7 +87,14 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
         if (index >= 0)
         {
             auto id = m_flightComboBox->itemData(index).toULongLong();
-            showFlight(m_blackBoxUI->getFlight(id));
+            if (id != (qulonglong)-1)
+            {
+                showFlight(m_blackBoxUI->getFlight(id));
+            }
+            else
+            {
+                m_blackBoxUI->openFlightsWindow();
+            }
         }
     });
 
@@ -277,20 +284,8 @@ void MainWindow::updateFlights()
     int selectedIndex = 0;
     auto currentFlights = m_blackBoxUI->getCurrentFlights();
 
-    auto size = flights.size();
-    auto start = 0;
-    if (size > 20)
-    {
-        size = 20;
-        start = flights.size() - 20;
-    }
-
-    auto startIt = flights.begin() + start;
-    auto endIt = flights.end();
-    vector<shared_ptr<Flight>> result(size);
-    copy(startIt, endIt, result.begin());
-
-    for (auto it = result.rbegin(); it != result.rend(); ++it)
+    int count = 0;
+    for (auto it = flights.rbegin(); it != flights.rend() && count < 20; ++it)
     {
         auto flight = *it;
         bool flightInCurrentFlights = false;
@@ -302,7 +297,7 @@ void MainWindow::updateFlights()
                 break;
             }
         }
-        if (flight->stateCount == 0 && !flightInCurrentFlights)
+        if (flight->stateCount < 100 && !flightInCurrentFlights)
         {
             printf("updateFlights: Skipping Flight %lld\n", flight->id);
             continue;
@@ -350,6 +345,7 @@ void MainWindow::updateFlights()
             title += flight->destination;
         }
         m_flightComboBox->addItem(QString(title.c_str()), QVariant::fromValue(flight->id));
+        count++;
 
         /*
         if (flight == currentFlightId)
@@ -361,6 +357,7 @@ void MainWindow::updateFlights()
 
         idx++;
     }
+    m_flightComboBox->addItem("More...", QVariant::fromValue(-1));
     m_flightComboBox->setCurrentIndex(selectedIndex);
 }
 
