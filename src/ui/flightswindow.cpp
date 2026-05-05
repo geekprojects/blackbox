@@ -6,8 +6,9 @@
 
 #include <qdatetime.h>
 #include <QHeaderView>
+#include <QLineEdit>
 #include <QPushButton>
-#include <QVBoxLayout>
+#include <QSortFilterProxyModel>
 
 #include "aircrafttypes.h"
 #include "mainwindow.h"
@@ -22,13 +23,31 @@ FlightsWindow::FlightsWindow(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     auto mainLayout = new QVBoxLayout();
     setLayout(mainLayout);
 
-    m_tableWidget = new QTableWidget();
+    auto filterBox = new QHBoxLayout();
+    mainLayout->addLayout(filterBox);
+    filterBox->addWidget(new QLabel("Origin:"));
+    filterBox->addWidget(m_originFilter = new QLineEdit());
+    filterBox->addWidget(new QLabel("Destination:"));
+    filterBox->addWidget(m_destFilter = new QLineEdit());
+    filterBox->addWidget(new QLabel("Type:"));
+    filterBox->addWidget(m_typeFilter = new QComboBox());
+
+    m_tableWidget = new QTableView();
     m_tableWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-    connect(m_tableWidget, &QTableWidget::cellDoubleClicked, this, [this](int row, int column)
+
+    m_tableModel = new QStandardItemModel(this);
+    m_sortModel = new QSortFilterProxyModel(this);
+    m_sortModel->setSourceModel(m_tableModel);
+    m_sortModel->setSortRole(Qt::UserRole);
+    m_tableWidget->setModel(m_sortModel);
+    m_tableWidget->setSortingEnabled(true);
+
+    connect(m_tableWidget, &QTableView::doubleClicked, this, [this](const QModelIndex & index)
     {
-        printf("Double clicked row %d\n", row);
-        auto flight = m_flightIndex.at(row);
+        auto srcIndex = m_sortModel->mapToSource(index);
+        printf("Double clicked row %d\n", srcIndex.row());
+        auto flight = m_flightIndex.at(srcIndex.row());
         printf(" -> flight id=%llu\n", flight->id);
 
         m_blackBoxUI->getMainWindow()->showFlight(flight);
@@ -45,9 +64,11 @@ FlightsWindow::FlightsWindow(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     auto deleteButton = new QPushButton("Delete");
     connect(deleteButton, &QPushButton::clicked, this, [this]()
     {
-        int currentRow = m_tableWidget->currentRow();
-        auto flight = m_flightIndex.at(currentRow);
-        m_blackBoxUI->deleteFlight(flight);
+        for (auto const& flight : getSelectedFlights())
+        {
+            printf("Delete flight: %s -> %s\n", flight->origin.c_str(), flight->destination.c_str());
+            m_blackBoxUI->deleteFlight(flight);
+        }
     });
     buttons->addWidget(deleteButton);
 }
@@ -55,23 +76,38 @@ FlightsWindow::FlightsWindow(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
 void FlightsWindow::updateFlights()
 {
     auto flights = m_blackBoxUI->getFlights();
-    m_tableWidget->clear();
-    m_tableWidget->setRowCount(flights.size());
-    m_tableWidget->setColumnCount(5);
-    m_tableWidget->setHorizontalHeaderLabels({"Date", "Origin", "Destination", "Type", "Updates"});
     m_tableWidget->setAlternatingRowColors(true);
     m_tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_tableWidget->setShowGrid(false);
 
+    m_tableModel->clear();
+    m_tableModel->setHorizontalHeaderLabels({"Date", "Origin", "Destination", "Type", "Updates"});
+    m_tableModel->setColumnCount(5);
+    m_tableModel->setRowCount(flights.size());
+
+    set<string> types;
     int row = 0;
     for (const auto& flight : flights)
     {
+        string aircraftType = AircraftTypes::getName(flight->icaoType);
+        types.insert(aircraftType);
+
+        m_flightIndex.insert_or_assign(row, flight);
+
+        auto startTime = QDateTime::fromMSecsSinceEpoch(flight->startTime);
+        auto dateItem = new QStandardItem(startTime.toString(Qt::DateFormat::TextDate));
+        dateItem->setData(flight->startTime, Qt::UserRole);
+        m_tableModel->setItem(row, 0, dateItem);
+
         string origin = flight->origin;
         Airport originAirport;
         if (m_blackBoxUI->getNavigraph()->findAirport(origin, originAirport))
         {
             origin = originAirport.name + " (" + origin + ")";
         }
+        auto originItem = new QStandardItem(QString::fromStdString(origin));
+        originItem->setData(QString::fromStdString(origin), Qt::UserRole);
+        m_tableModel->setItem(row, 1, originItem);
 
         string dest = flight->destination;
         Airport destAirport;
@@ -79,18 +115,17 @@ void FlightsWindow::updateFlights()
         {
             dest = destAirport.name + " (" + dest + ")";
         }
+        auto destItem = new QStandardItem(QString::fromStdString(dest));
+        destItem->setData(QString::fromStdString(dest), Qt::UserRole);
+        m_tableModel->setItem(row, 2, destItem);
 
-        string aircraftType = AircraftTypes::getName(flight->icaoType);
+        auto typeItem = new QStandardItem(QString::fromStdString(aircraftType));
+        typeItem->setData(QString::fromStdString(aircraftType), Qt::UserRole);
+        m_tableModel->setItem(row, 3, typeItem);
 
-        auto startTime = QDateTime::fromMSecsSinceEpoch(flight->startTime);
-
-        m_tableWidget->setItem(row, 0, new QTableWidgetItem(startTime.toString(Qt::DateFormat::TextDate)));
-        m_tableWidget->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(origin)));
-        m_tableWidget->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dest)));
-        m_tableWidget->setItem(row, 3, new QTableWidgetItem(QString::fromStdString(aircraftType)));
-        m_tableWidget->setItem(row, 4, new QTableWidgetItem(QString::number(flight->stateCount)));
-
-        m_flightIndex.insert_or_assign(row, flight);
+        auto countItem = new QStandardItem(QString::number(flight->stateCount));
+        countItem->setData(flight->stateCount, Qt::UserRole);
+        m_tableModel->setItem(row, 4, countItem);
 
         row++;
     }
@@ -98,22 +133,31 @@ void FlightsWindow::updateFlights()
     m_tableWidget->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
     m_tableWidget->adjustSize();
 
+    m_typeFilter->clear();
+    for (auto const& type : types)
+    {
+        m_typeFilter->addItem(QString::fromStdString(type));
+    }
+
     adjustSize();
 }
 
 void FlightsWindow::mergeSelected()
 {
-    auto items = m_tableWidget->selectedItems();
-    vector<shared_ptr<Flight>> flights;
-    for (auto item : items)
-    {
-        if (item->column() == 0)
-        {
-            auto flight = m_flightIndex.at(item->row());
-            flights.push_back(flight);
-        }
-    }
+    auto flights = getSelectedFlights();
 
     MergeFlights mergeFlights(&(m_blackBoxUI->getDataStore()));
     mergeFlights.merge(flights);
+}
+
+vector<std::shared_ptr<Flight>> FlightsWindow::getSelectedFlights()
+{
+    vector<std::shared_ptr<Flight>> flights;
+    for (auto const& index : m_tableWidget->selectionModel()->selectedRows())
+    {
+        auto srcIndex = m_sortModel->mapToSource(index);
+        auto flight = m_flightIndex.at(srcIndex.row());
+        flights.push_back(flight);
+    }
+    return flights;
 }

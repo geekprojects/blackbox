@@ -5,20 +5,51 @@
 #ifndef BLACKBOX_FLIGHTSWINDOW_H
 #define BLACKBOX_FLIGHTSWINDOW_H
 
-#include <QTableView>
+#include <qcombobox.h>
+#include <QSortFilterProxyModel>
 #include <QWidget>
-#include <QTableWidget>
+#include <QTableView>
+#include <QStandardItemModel>
 
 #include "blackbox.h"
 
+#if 0
+class FlightsModel : public QAbstractTableModel
+{
+    Q_OBJECT
+
+    BlackBoxUI* m_blackBoxUI;
+    std::vector<std::shared_ptr<Flight>> m_flights;
+
+ public:
+    explicit FlightsModel(BlackBoxUI* blackBox, QObject* parent = nullptr);
+    ~FlightsModel() override = default;
+
+    void setFlights(std::vector<std::shared_ptr<Flight>> flights);
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
+
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+};
+#endif
 
 class FlightsWindow : public QWidget
 {
     BlackBoxUI* m_blackBoxUI = nullptr;
 
-    QTableWidget* m_tableWidget = nullptr;
+    QTableView* m_tableWidget = nullptr;
+    //FlightsModel* m_tableModel = nullptr;
+    QStandardItemModel* m_tableModel = nullptr;
+    QSortFilterProxyModel* m_sortModel = nullptr;
     
     std::map<int, std::shared_ptr<Flight>> m_flightIndex;
+    QLineEdit* m_originFilter;
+    QLineEdit* m_destFilter;
+    QComboBox* m_typeFilter;
+
+    std::vector<std::shared_ptr<Flight>> getSelectedFlights();
 
  public:
     explicit FlightsWindow(BlackBoxUI* blackBoxUI);
