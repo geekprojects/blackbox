@@ -159,6 +159,12 @@ void FlightDetailsWidget::routeEdited()
     printf("FlightDetailsWidget::routeChanged: route: %s\n", route.toStdString().c_str());
 
     auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+    if (flight == nullptr)
+    {
+        m_updateRouteButton->hide();
+        return;
+    }
+
     if (route.toStdString() != flight->route)
     {
         m_updateRouteButton->show();
@@ -172,6 +178,12 @@ void FlightDetailsWidget::routeEdited()
 void FlightDetailsWidget::routeUpdate()
 {
     auto flight = m_mainWindow->getBlackBoxUI()->getCurrentFlight();
+    if (flight == nullptr)
+    {
+        m_updateRouteButton->hide();
+        return;
+    }
+
     flight->route = m_routeEdit->toPlainText().toStdString();
 
     m_mainWindow->getBlackBoxUI()->getDataStore().updateFlight(*flight, "route", flight->route);
