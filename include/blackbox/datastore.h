@@ -24,6 +24,7 @@ struct Flight
 
     // These values are not stored in the DB
     uint64_t stateCount = 0;
+    double landingRate = 0;
 
     std::string toString() const
     {
@@ -40,6 +41,7 @@ class DataStore : public Database
     sqlite3_stmt* m_moveStatusStatement = nullptr;
     sqlite3_stmt* m_insertScreenshotStatement = nullptr;
     sqlite3_stmt* m_fetchScreenshotStatement = nullptr;
+    sqlite3_stmt* m_landingStatement = nullptr;
 
     std::map<std::string, sqlite3_stmt*> m_statementCache;
 
@@ -61,6 +63,7 @@ public:
     uint64_t writeState(uint64_t flightId, const State &state);
     std::vector<State> fetchUpdates(uint64_t flightId, uint64_t sinceTimestamp);
     uint64_t countUpdates(uint64_t flightId);
+    double getLandingRate(uint64_t flightId);
     void deleteState(uint64_t flightId, uint64_t stateId);
     void moveStates(uint64_t from, uint64_t to);
 

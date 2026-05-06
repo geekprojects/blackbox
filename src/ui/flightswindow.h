@@ -10,6 +10,7 @@
 #include <QWidget>
 #include <QTableView>
 #include <QStandardItemModel>
+#include <QLabel>
 
 #include "blackbox.h"
 
@@ -35,6 +36,8 @@ class FlightsModel : public QAbstractTableModel
 };
 #endif
 
+class FlightProxyModel;
+
 class FlightsWindow : public QWidget
 {
     BlackBoxUI* m_blackBoxUI = nullptr;
@@ -42,12 +45,14 @@ class FlightsWindow : public QWidget
     QTableView* m_tableWidget = nullptr;
     //FlightsModel* m_tableModel = nullptr;
     QStandardItemModel* m_tableModel = nullptr;
-    QSortFilterProxyModel* m_sortModel = nullptr;
+    FlightProxyModel* m_sortModel = nullptr;
     
     std::map<int, std::shared_ptr<Flight>> m_flightIndex;
-    QLineEdit* m_originFilter;
-    QLineEdit* m_destFilter;
+    QComboBox* m_airportFilter;
     QComboBox* m_typeFilter;
+
+    QLabel* m_flightCount;
+    QLabel* m_landingAverage;
 
     std::vector<std::shared_ptr<Flight>> getSelectedFlights();
 
@@ -58,6 +63,46 @@ class FlightsWindow : public QWidget
     void updateFlights();
 
     void mergeSelected();
+};
+class FlightProxyModel : public QSortFilterProxyModel
+{
+    Q_OBJECT
+
+    // Filters
+    std::string m_airport;
+    std::string m_aircraftType;
+
+ protected:
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
+
+ public:
+    explicit FlightProxyModel(QObject *parent = nullptr) : QSortFilterProxyModel(parent)
+    {
+    }
+
+    [[nodiscard]] std::string getAirport() const
+    {
+        return m_airport;
+    }
+
+    void setAirport(const std::string& airport)
+    {
+        beginFilterChange();
+        this->m_airport = airport;
+        endFilterChange(Direction::Rows);
+    }
+
+    [[nodiscard]] std::string getAircraftType() const
+    {
+        return m_aircraftType;
+    }
+
+    void setAircraftType(const std::string& aircraft_type)
+    {
+        beginFilterChange();
+        m_aircraftType = aircraft_type;
+        endFilterChange(Direction::Rows);
+    }
 };
 
 

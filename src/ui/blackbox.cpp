@@ -135,6 +135,7 @@ void BlackBoxUI::updateFlights()
         }
 
         flight->stateCount = m_dataStore.countUpdates(flight->id);
+        flight->landingRate = m_dataStore.getLandingRate(flight->id);
     }
 
     if (m_currentFlights.empty())

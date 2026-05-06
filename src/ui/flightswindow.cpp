@@ -6,7 +6,6 @@
 
 #include <qdatetime.h>
 #include <QHeaderView>
-#include <QLineEdit>
 #include <QPushButton>
 #include <QSortFilterProxyModel>
 
@@ -25,19 +24,27 @@ FlightsWindow::FlightsWindow(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
 
     auto filterBox = new QHBoxLayout();
     mainLayout->addLayout(filterBox);
-    filterBox->addWidget(new QLabel("Origin:"));
-    filterBox->addWidget(m_originFilter = new QLineEdit());
-    filterBox->addWidget(new QLabel("Destination:"));
-    filterBox->addWidget(m_destFilter = new QLineEdit());
+    filterBox->addWidget(new QLabel("Airport:"));
+    filterBox->addWidget(m_airportFilter = new QComboBox());
     filterBox->addWidget(new QLabel("Type:"));
     filterBox->addWidget(m_typeFilter = new QComboBox());
+
+    connect(m_airportFilter, &QComboBox::activated, this, [this](int index)
+    {
+        m_sortModel->setAirport(m_airportFilter->itemText(index).toStdString());
+    });
+
+    connect(m_typeFilter, &QComboBox::activated, this, [this](int index)
+    {
+        m_sortModel->setAircraftType(m_typeFilter->itemText(index).toStdString());
+    });
 
     m_tableWidget = new QTableView();
     m_tableWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
 
     m_tableModel = new QStandardItemModel(this);
-    m_sortModel = new QSortFilterProxyModel(this);
+    m_sortModel = new FlightProxyModel(this);
     m_sortModel->setSourceModel(m_tableModel);
     m_sortModel->setSortRole(Qt::UserRole);
     m_tableWidget->setModel(m_sortModel);
@@ -46,13 +53,18 @@ FlightsWindow::FlightsWindow(BlackBoxUI* blackBoxUI) : m_blackBoxUI(blackBoxUI)
     connect(m_tableWidget, &QTableView::doubleClicked, this, [this](const QModelIndex & index)
     {
         auto srcIndex = m_sortModel->mapToSource(index);
-        printf("Double clicked row %d\n", srcIndex.row());
         auto flight = m_flightIndex.at(srcIndex.row());
-        printf(" -> flight id=%llu\n", flight->id);
 
         m_blackBoxUI->getMainWindow()->showFlight(flight);
     });
     mainLayout->addWidget(m_tableWidget);
+
+    auto summary = new QHBoxLayout();
+    mainLayout->addLayout(summary);
+    summary->addWidget(new QLabel("Flights:"));
+    summary->addWidget(m_flightCount = new QLabel());
+    summary->addWidget(new QLabel("Landing:"));
+    summary->addWidget(m_landingAverage = new QLabel());
 
     m_tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
@@ -81,12 +93,15 @@ void FlightsWindow::updateFlights()
     m_tableWidget->setShowGrid(false);
 
     m_tableModel->clear();
-    m_tableModel->setHorizontalHeaderLabels({"Date", "Origin", "Destination", "Type", "Updates"});
-    m_tableModel->setColumnCount(5);
+    m_tableModel->setHorizontalHeaderLabels({"Date", "Origin", "Destination", "Type", "Landing", "Updates"});
+    m_tableModel->setColumnCount(6);
     m_tableModel->setRowCount(flights.size());
 
     set<string> types;
+    set<string> airports;
     int row = 0;
+    double landingTotal = 0.0;
+    int landingCount = 0;
     for (const auto& flight : flights)
     {
         string aircraftType = AircraftTypes::getName(flight->icaoType);
@@ -101,9 +116,13 @@ void FlightsWindow::updateFlights()
 
         string origin = flight->origin;
         Airport originAirport;
-        if (m_blackBoxUI->getNavigraph()->findAirport(origin, originAirport))
+        if (!origin.empty() && m_blackBoxUI->getNavigraph()->findAirport(origin, originAirport))
         {
             origin = originAirport.name + " (" + origin + ")";
+        }
+        if (!origin.empty())
+        {
+            airports.insert(origin);
         }
         auto originItem = new QStandardItem(QString::fromStdString(origin));
         originItem->setData(QString::fromStdString(origin), Qt::UserRole);
@@ -111,9 +130,13 @@ void FlightsWindow::updateFlights()
 
         string dest = flight->destination;
         Airport destAirport;
-        if (m_blackBoxUI->getNavigraph()->findAirport(dest, destAirport))
+        if (!dest.empty() && m_blackBoxUI->getNavigraph()->findAirport(dest, destAirport))
         {
             dest = destAirport.name + " (" + dest + ")";
+        }
+        if (!dest.empty())
+        {
+            airports.insert(dest);
         }
         auto destItem = new QStandardItem(QString::fromStdString(dest));
         destItem->setData(QString::fromStdString(dest), Qt::UserRole);
@@ -123,9 +146,20 @@ void FlightsWindow::updateFlights()
         typeItem->setData(QString::fromStdString(aircraftType), Qt::UserRole);
         m_tableModel->setItem(row, 3, typeItem);
 
+        QString landingStr;
+        if (flight->landingRate < 0)
+        {
+            landingTotal += flight->landingRate;
+            landingCount++;
+            landingStr = QString::number(static_cast<int>(round(flight->landingRate)));
+        }
+        auto landingItem = new QStandardItem(landingStr);
+        landingItem->setData(flight->landingRate, Qt::UserRole);
+        m_tableModel->setItem(row, 4, landingItem);
+
         auto countItem = new QStandardItem(QString::number(flight->stateCount));
         countItem->setData(flight->stateCount, Qt::UserRole);
-        m_tableModel->setItem(row, 4, countItem);
+        m_tableModel->setItem(row, 5, countItem);
 
         row++;
     }
@@ -133,7 +167,22 @@ void FlightsWindow::updateFlights()
     m_tableWidget->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
     m_tableWidget->adjustSize();
 
+    double landingAverage = 0.0;
+    if (landingCount > 0)
+    {
+        landingAverage = landingTotal / landingCount;
+    }
+    m_landingAverage->setText(QString::number(static_cast<int>(round(landingAverage))) + " fpm");
+
+    m_airportFilter->clear();
+    airports.insert("");
+    for (auto const& airport : airports)
+    {
+        m_airportFilter->addItem(QString::fromStdString(airport));
+    }
+
     m_typeFilter->clear();
+    types.insert("");
     for (auto const& type : types)
     {
         m_typeFilter->addItem(QString::fromStdString(type));
@@ -161,3 +210,31 @@ vector<std::shared_ptr<Flight>> FlightsWindow::getSelectedFlights()
     }
     return flights;
 }
+
+bool FlightProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
+{
+    if (!m_airport.empty())
+    {
+        auto index = sourceModel()->index(sourceRow, 1);
+        auto origin = sourceModel()->data(index, Qt::DisplayRole).toString();
+        index = sourceModel()->index(sourceRow, 2);
+        auto dest = sourceModel()->data(index, Qt::DisplayRole).toString();
+        if (!origin.contains(m_airport.c_str()) && !dest.contains(m_airport.c_str()))
+        {
+            return false;
+        }
+    }
+
+    if (!m_aircraftType.empty())
+    {
+        auto index = sourceModel()->index(sourceRow, 3);
+        auto type = sourceModel()->data(index, Qt::DisplayRole).toString();
+        if (!type.contains(m_aircraftType.c_str()))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+

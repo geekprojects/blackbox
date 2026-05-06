@@ -33,7 +33,6 @@ bool DataStore::init(const string &dbPath)
         return false;
     }
 
-
     sql =
         "CREATE TABLE IF NOT EXISTS flights ("
         "    id INTEGER PRIMARY KEY,"
@@ -189,6 +188,11 @@ bool DataStore::init(const string &dbPath)
     }
 
     if (!prepare("UPDATE flight_state SET flight_id=? WHERE flight_id=?", &m_moveStatusStatement))
+    {
+        return false;
+    }
+
+    if (!prepare("SELECT avg(fpm) FROM flight_state WHERE flight_id = ? AND event = 'Landing'", &m_landingStatement))
     {
         return false;
     }
@@ -447,6 +451,23 @@ uint64_t DataStore::countUpdates(uint64_t flightId)
 
     sqlite3_reset(m_countStatusStatement);
     return count;
+}
+
+double DataStore::getLandingRate(uint64_t flightId)
+{
+    sqlite3_bind_int64(m_landingStatement, 1, flightId);
+    auto res = sqlite3_step(m_landingStatement);
+    double landingRate = 0.0;
+    if (res == SQLITE_ROW)
+    {
+        landingRate = sqlite3_column_double(m_landingStatement, 0);
+    }
+    else
+    {
+        log(ERROR, "getLandingRate: Failed to get landing rate: %d: %s", res, sqlite3_errmsg(getDB()));
+    }
+    sqlite3_reset(m_landingStatement);
+    return landingRate;
 }
 
 void DataStore::deleteState(uint64_t flightId, uint64_t stateId)
