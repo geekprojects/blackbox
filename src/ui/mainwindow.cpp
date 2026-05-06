@@ -27,6 +27,8 @@
 
 using namespace std;
 
+static constexpr qlonglong SHOW_MORE_FLIGHTS = -1;
+
 MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
 {
     setWindowTitle("BlackBox Flight Tracker");
@@ -87,7 +89,7 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
         if (index >= 0)
         {
             auto id = m_flightComboBox->itemData(index).toULongLong();
-            if (id != (qulonglong)-1)
+            if (id != SHOW_MORE_FLIGHTS)
             {
                 showFlight(m_blackBoxUI->getFlight(id));
             }
@@ -168,7 +170,7 @@ void MainWindow::buildFlightSelectionWidget()
     m_flightComboBox = new QComboBox();
     m_flightComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     m_flightComboBox->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Preferred);
-    m_flightComboBox->addItem("MMMMMMMMMMMMMMMMM");
+    m_flightComboBox->setMinimumContentsLength(17);
     topRow->addWidget(m_flightComboBox);
 
     auto tableButton = new QToolButton();
@@ -357,7 +359,7 @@ void MainWindow::updateFlights()
 
         idx++;
     }
-    m_flightComboBox->addItem("More...", QVariant::fromValue(-1));
+    m_flightComboBox->addItem("More...", QVariant::fromValue(SHOW_MORE_FLIGHTS));
     m_flightComboBox->setCurrentIndex(selectedIndex);
 }
 

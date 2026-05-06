@@ -138,7 +138,7 @@ void BlackBoxUI::updateFlights()
         flight->landingRate = m_dataStore.getLandingRate(flight->id);
     }
 
-    if (m_currentFlights.empty())
+    if (!m_currentFlights.empty())
     {
         vector<shared_ptr<Flight>> currentFlights;
         for (auto flight : m_currentFlights)
@@ -161,7 +161,7 @@ void BlackBoxUI::deleteFlight(std::shared_ptr<Flight> flight)
     auto reply = QMessageBox::question(
         m_mainWindow,
         "Delete Flight",
-        QString::fromStdString("Are you sure you wish to delete the fight '" + flight->toString() + "'? This action cannot be undone."),
+        QString::fromStdString("Are you sure you wish to delete the flight '" + flight->toString() + "'? This action cannot be undone."),
         QMessageBox::Yes|QMessageBox::No);
     if (reply == QMessageBox::Yes)
     {

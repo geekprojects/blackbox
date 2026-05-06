@@ -195,7 +195,7 @@ void FlightsWindow::mergeSelected()
 {
     auto flights = getSelectedFlights();
 
-    MergeFlights mergeFlights(&(m_blackBoxUI->getDataStore()));
+    MergeFlights mergeFlights(&m_blackBoxUI->getDataStore());
     mergeFlights.merge(flights);
 }
 

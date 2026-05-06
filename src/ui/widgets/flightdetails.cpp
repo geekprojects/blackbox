@@ -133,9 +133,9 @@ FlightDetailsWidget::FlightDetailsWidget(MainWindow* mainWindow, QWidget* parent
         buttonRow->addWidget(simbriefButton);
     }
     {
-        auto deleteButton = new QPushButton(QIcon::fromTheme(QIcon::ThemeIcon::DocumentProperties), "");
-        deleteButton->setSizePolicy(QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Preferred);
-        buttonRow->addWidget(deleteButton);
+        auto propertiesButton = new QPushButton(QIcon::fromTheme(QIcon::ThemeIcon::DocumentProperties), "");
+        propertiesButton->setSizePolicy(QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Preferred);
+        buttonRow->addWidget(propertiesButton);
     }
     detailsBoxLayout->addLayout(buttonRow);
 }
