@@ -10,11 +10,14 @@
 #include "navigraph.h"
 #include "blackbox/datastore.h"
 
+class QSettings;
 class MainWindow;
 class FlightsWindow;
 
 class BlackBoxUI : public QApplication
 {
+    QSettings* m_settings;
+
     MainWindow* m_mainWindow = nullptr;
     FlightsWindow* m_flightsWindow = nullptr;
 
@@ -73,6 +76,10 @@ class BlackBoxUI : public QApplication
     MainWindow* getMainWindow() const { return m_mainWindow; }
     DataStore& getDataStore() { return m_dataStore; }
     std::shared_ptr<NavigraphData> getNavigraph() { return m_navigraph; }
+
+    QString getSetting(const QString &setting);
+    void setSetting(const QString &setting, const QString &value);
+    QSettings* getSettings() const { return m_settings; }
 };
 
 #endif //BLACKBOX_BLACKBOX_H

@@ -28,11 +28,11 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
     parser.addVersionOption();
     parser.process(*this);
 
-    QSettings settings("geekprojects", "BlackBox");
-    printf("Settings file: %s\n", settings.fileName().toStdString().c_str());
+    m_settings = new QSettings("geekprojects", "BlackBox");
+    printf("Settings file: %s\n", m_settings->fileName().toStdString().c_str());
 
     string xplaneDir;
-    auto xplaneDirValue = settings.value("XPlaneDir");
+    auto xplaneDirValue = m_settings->value("XPlaneDir");
     if (xplaneDirValue.isValid())
     {
         xplaneDir = xplaneDirValue.toString().toStdString();
@@ -63,8 +63,8 @@ BlackBoxUI::BlackBoxUI(int argc, char** argv) : QApplication(argc, argv)
         }
 
         xplaneDir = dialog.toStdString();
-        settings.setValue("XPlaneDir", QVariant::fromValue(QString::fromStdString(xplaneDir)));
-        settings.sync();
+        m_settings->setValue("XPlaneDir", QVariant::fromValue(QString::fromStdString(xplaneDir)));
+        m_settings->sync();
     }
 
     printf("XPlane directory: %s\n", xplaneDir.c_str());
@@ -178,6 +178,18 @@ void BlackBoxUI::setState(const State &state)
     {
         m_mainWindow->updateState();
     }
+}
+
+QString BlackBoxUI::getSetting(const QString &setting)
+{
+    return m_settings->value(setting).toString();
+}
+
+void BlackBoxUI::setSetting(const QString &setting, const QString &value)
+{
+    printf("BlackBoxUI::setSetting: %s -> %s\n", setting.toStdString().c_str(), value.toStdString().c_str());
+    m_settings->setValue(setting, value);
+    m_settings->sync();
 }
 
 void BlackBoxUI::setupCachedNetworkAccessManager()

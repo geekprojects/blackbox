@@ -50,7 +50,7 @@ MainWindow::MainWindow(BlackBoxUI* bbui) : m_blackBoxUI(bbui)
     m_sysTrayIcon->show();
 #endif
 
-    m_settingsWindow = new SettingsWindow();
+    m_settingsWindow = new SettingsWindow(m_blackBoxUI);
 
     auto menu = menuBar();
     auto fileMenu = menu->addMenu("File");

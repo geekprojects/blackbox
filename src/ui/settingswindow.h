@@ -7,11 +7,21 @@
 
 #include <QWidget>
 
+class BlackBoxUI;
+class QLineEdit;
+
 class SettingsWindow : public QWidget
 {
+    BlackBoxUI* m_blackBoxUI;
+
+    QLineEdit* m_simPathEdit;
+    QLineEdit* m_simbriefUsernameEdit;
+
  public:
-    SettingsWindow();
+    SettingsWindow(BlackBoxUI* blackBoxUI);
     ~SettingsWindow() override = default;
+
+    void update();
 };
 
 #endif //BLACKBOX_SETTINGSWINDOW_H
